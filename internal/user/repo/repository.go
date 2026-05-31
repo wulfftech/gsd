@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -163,7 +164,7 @@ func (r *UserRepository) UpdateManagedUser(c context.Context, userID int, userna
 		updates["display_name"] = displayName
 	}
 	if len(updates) == 0 {
-		return nil
+		return errors.New("at least one of username or displayName must be provided")
 	}
 	return r.db.WithContext(c).Model(&uModel.User{}).Where("id = ?", userID).Updates(updates).Error
 }

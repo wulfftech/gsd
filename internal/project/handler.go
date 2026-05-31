@@ -119,10 +119,11 @@ func (h *Handler) createProject(c *gin.Context) {
 		return
 	}
 
-	// Reload with relations
+	// Reload with full relations (assignees + tasks)
 	full, err := h.pRepo.GetProjectByID(c, project.ID, currentUser.CircleID)
 	if err != nil {
-		c.JSON(200, gin.H{"res": project})
+		log.Error("failed to reload project after create", "err", err, "projectId", project.ID)
+		c.JSON(500, gin.H{"error": "Project created but failed to load relations — please refresh"})
 		return
 	}
 	c.JSON(200, gin.H{"res": full})

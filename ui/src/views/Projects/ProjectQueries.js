@@ -23,7 +23,7 @@ const parseError = async resp => {
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
-export const useProjects = () => {
+export const useProjects = (options = {}) => {
   return useQuery({
     queryKey: PROJECTS_KEY,
     queryFn: async () => {
@@ -31,6 +31,7 @@ export const useProjects = () => {
       if (!resp.ok) throw await parseError(resp)
       return resp.json()
     },
+    ...options,
   })
 }
 

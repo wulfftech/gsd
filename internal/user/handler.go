@@ -49,8 +49,6 @@ type Handler struct {
 	deletionService        *DeletionService
 	appleService           *apple.AppleService
 	mfaService             *mfa.MFAService
-	maxSubaccounts         int
-	plusMaxSubaccounts     int
 	oauth2Config           config.OAuth2Config
 	singleCircleInstance   bool
 }
@@ -78,8 +76,6 @@ func NewHandler(ur *uRepo.UserRepository, cr *cRepo.CircleRepository,
 		deletionService:        deletionService,
 		appleService:           appleService,
 		mfaService:             mfaService,
-		maxSubaccounts:         config.FeatureLimits.MaxSubaccounts,
-		plusMaxSubaccounts:     config.FeatureLimits.PlusMaxSubaccounts,
 		oauth2Config:           config.OAuth2Config,
 		singleCircleInstance:   config.SingleCircleInstance,
 	}

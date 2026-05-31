@@ -311,9 +311,15 @@ func (r *ProjectRepository) ReopenProject(ctx context.Context, projectID int, ci
 // completeProject awards points to all assignees and marks the project completed.
 // Must be called inside an existing transaction (tx).
 func (r *ProjectRepository) completeProject(tx *gorm.DB, projectID int, circleID int, adminID int) (*projModel.Project, error) {
+	log := logging.DefaultLogger()
 	var project projModel.Project
 	if err := tx.Preload("Assignees").First(&project, projectID).Error; err != nil {
 		return nil, err
+	}
+
+	if project.Points > 0 && len(project.Assignees) == 0 {
+		log.Warn("completeProject: project has points but no assignees — no points will be awarded",
+			"projectId", projectID, "points", project.Points)
 	}
 
 	if project.Points > 0 {

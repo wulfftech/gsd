@@ -318,7 +318,11 @@ const DashboardView = () => {
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: circleMembersData } = useCircleMembers()
   const { data: userProfile } = useUserProfile()
-  const { data: history = [] } = useChoresHistory(100, false)
+  const { data: historyRaw } = useChoresHistory(100, false)
+  // Normalise: useChoresHistory may return an array or {res:[]} depending on cache state
+  const history = Array.isArray(historyRaw)
+    ? historyRaw
+    : historyRaw?.res || []
 
   const chores = choresData?.res || []
   const members = circleMembersData?.res || []
@@ -351,7 +355,7 @@ const DashboardView = () => {
   // ── Right panel data ─────────────────────────────────────────────────────
   // Completed chores today, keyed by userId
   const completedTodayByUser = {}
-  ;(Array.isArray(history) ? history : []).forEach(h => {
+  ;history.forEach(h => {
     const performedAt = h.performedAt || h.completedAt || h.updatedAt
     if (!performedAt) return
     if (new Date(performedAt) < todayStart) return

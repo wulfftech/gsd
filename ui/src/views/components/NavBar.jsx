@@ -52,10 +52,14 @@ const NavBar = () => {
   const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // Pending-approval alert for admins
+  // Pending-approval alert for admins — only query when authenticated
   const { data: userProfile } = useUserProfile()
   const { data: circleMembersData } = useCircleMembers()
-  const { data: projects = [] } = useProjects()
+  const isPublicPage =
+    publicPages.includes(location.pathname) ||
+    window.location.hostname === 'www.donetick.com' ||
+    window.location.hostname === 'donetick.com'
+  const { data: projects = [] } = useProjects({ enabled: !isPublicPage && !!userProfile })
   const circleMembers = circleMembersData?.res || []
   const isAdmin = circleMembers.find(m => m.userId === userProfile?.id)?.role === 'admin'
   const pendingApprovalCount = isAdmin

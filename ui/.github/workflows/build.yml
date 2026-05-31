@@ -21,9 +21,13 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: ui/package-lock.json
     - name: Install dependencies
-      run: npm i
-    - run: npm run build
+      working-directory: ui
+      run: npm ci
+    - name: Build
+      working-directory: ui
+      run: npm run build -- --mode selfhosted
 
   lint:
     runs-on: ubuntu-latest
@@ -34,7 +38,11 @@ jobs:
       with:
         node-version: 22
         cache: 'npm'
+        cache-dependency-path: ui/package-lock.json
     - name: Install dependencies
-      run: npm i
+      working-directory: ui
+      run: npm ci
     # Lint currently reporting lots of preexisting issues
-    # - run: npm run lint
+    # - name: Lint
+    #   working-directory: ui
+    #   run: npm run lint
