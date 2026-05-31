@@ -1,0 +1,466 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { networkManager } from '../hooks/NetworkManager'
+import { FEATURES, isFeatureEnabled } from '../utils/FeatureToggle'
+import {
+  ApproveChore,
+  ArchiveChore,
+  CreateChore,
+  DeleteChore,
+  DeleteChoreHistory,
+  GetChoreByID,
+  GetChoreDetailById,
+  GetChoreHistory,
+  GetChoresHistory,
+  GetChoresNew,
+  MarkChoreComplete,
+  RejectChore,
+  SaveChore,
+  SkipChore,
+  UnArchiveChore,
+  UpdateChoreHistory,
+} from '../utils/Fetcher'
+import { localStore } from '../utils/LocalStore'
+
+export const useChores = includeArchive => {
+  return useQuery({
+    queryKey: ['chores', includeArchive],
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const onlineChores = await GetChoresNew(includeArchive)
+
+      // Only handle offline tasks if experimental offline mode is enabled
+      if (!isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+        return onlineChores
+      }
+
+      const offlineTasks = (await localStore.getFromCache('offlineTasks')) || []
+      // go throught each and if there is two chores with same id in offline and online, prefer the offline one:
+      var finalChores = []
+      if (onlineChores && onlineChores.res) {
+        finalChores = onlineChores.res.filter(
+          onlineChore =>
+            !offlineTasks.some(offlineTask => {
+              // Match by id or tempId
+              return (
+                String(onlineChore.id) === String(offlineTask.id) ||
+                (offlineTask.tempId &&
+                  String(onlineChore.id) === String(offlineTask.tempId))
+              )
+            }),
+        )
+      }
+      // Combine online chores with offline tasks
+      if (offlineTasks.length > 0) {
+        // Merge the offline tasks with the online chores
+        finalChores = [
+          ...finalChores,
+          ...offlineTasks.map(task => ({
+            ...task,
+            id: task.id || task.tempId, // Ensure we have an id for consistency
+          })),
+        ]
+      }
+
+      return { res: finalChores }
+
+      // return { res: [...onlineChores.res, ...offlineTasks] }
+    },
+  })
+}
+export const useDeleteChores = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async choreIds => {
+      // If offline mode is enabled and we're offline, handle deletion locally
+      if (!networkManager.isOnline && isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+        const offlineTasks =
+          (await localStore.getFromCache('offlineTasks')) || []
+        const updatedOfflineTasks = offlineTasks.filter(
+          task =>
+            !choreIds.includes(task.id) && !choreIds.includes(task.tempId),
+        )
+        await localStore.saveToCache('offlineTasks', updatedOfflineTasks)
+        // Force the chores query to refetch
+        queryClient.invalidateQueries(['chores'])
+        return
+      }
+
+      // If online, proceed with server-side deletion
+      await Promise.all(
+        choreIds.map(async id => {
+          const resp = await DeleteChore(id)
+          if (!resp || !resp.ok) {
+            throw new Error(`Failed to delete chore with ID: ${id}`)
+          }
+        }),
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chores'])
+    },
+  })
+}
+export const useCreateChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async newTask => {
+      const resp = await CreateChore(newTask)
+      if (!resp || !resp.ok) {
+        throw new Error('Failed to create chore')
+      }
+      const createdChore = await resp.json()
+      if (!createdChore) {
+        throw new Error('Failed to get created chore data')
+      }
+      // Successfully created the chore on the server, return the created chore
+      // update the local chores cache with the new chore:
+      queryClient.setQueryData(['chores'], oldData => {
+        if (!oldData) return { res: [createdChore.res] }
+        return { res: [...oldData.res, createdChore.res] }
+      })
+      return { res: createdChore }
+    },
+
+    // onMutate: async newTask => {
+    //   if (!networkManager.isOnline && isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+    //     const tempId = crypto.randomUUID() // Generate temp ID
+    //     const offlineTasks =
+    //       (await localStore.getFromCache('offlineTasks')) || []
+    //     const updateOfflineTasks = [
+    //       ...offlineTasks,
+    //       { ...newTask, id: tempId, tempId }, // Use the tempId for offline tracking
+    //     ]
+    //     await localStore.saveToCache('offlineTasks', updateOfflineTasks) // Save to local storage
+    //     // force useChores to refetch:
+    //     queryClient.invalidateQueries(['chores'])
+    //     // Force the chores query to refetch
+    //     queryClient.refetchQueries(['chores'])
+    //     // Update the chores query cache immediately
+    //     // queryClient.setQueryData(['chores'], oldData => {
+    //     //   console.log('ATTEMPT TO SAVE OFFLINE TASKS:', updateOfflineTasks)
+
+    //     //   if (!oldData)
+    //     //     return {
+    //     //       res: [{ ...newTask, id: tempId, tempId }],
+    //     //     } // If no data, return offline tasks
+    //     //   return {
+    //     //     res: [...oldData.res, { ...newTask, id: tempId, tempId }],
+    //     //   }
+    //     // })
+    //     return { tempId }
+    //   }
+    //   const tempId = crypto.randomUUID() // Generate temp ID
+    //   // Update the chores query cache immediately
+    //   queryClient.setQueryData(['chores'], oldData => {
+    //     if (!oldData)
+    //       return {
+    //         res: [{ ...newTask, id: tempId, tempId }],
+    //       } // If no data, return offline tasks
+    //     return {
+    //       res: [...oldData.res, { ...newTask, id: tempId, tempId }],
+    //     }
+    //   })
+    //   return { tempId: null }
+    // },
+    onSuccess: () => {
+      // Invalidate the chores query to refresh the data
+      queryClient.invalidateQueries(['chores'])
+    },
+  })
+}
+
+export const useUpdateChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async updatedChore => {
+      if (!networkManager.isOnline && isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+        updatedChore['updatedAt'] = new Date().toISOString()
+        if (!updatedChore['nextDueDate']) {
+          updatedChore['nextDueDate'] = updatedChore['dueDate']
+        }
+        const offlineTasks =
+          (await localStore.getFromCache('offlineTasks')) || []
+
+        for (const task of offlineTasks) {
+          // Find the task with the same id or tempId and update it
+          if (task.id === updatedChore.id || task.tempId === updatedChore.id) {
+            // Update the task in local storage
+            const updatedTask = { ...task, ...updatedChore }
+            const updatedOfflineTasks = offlineTasks.map(t =>
+              t.id === task.id ? updatedTask : t,
+            )
+            await localStore.saveToCache('offlineTasks', updatedOfflineTasks)
+            return new Promise((resolve, reject) => {
+              resolve(updatedTask)
+            })
+          }
+        }
+        const newTaskId = crypto.randomUUID()
+        const updatedChoreWithNewId = {
+          ...updatedChore,
+          tempId: newTaskId,
+        }
+
+        await localStore.saveToCache('offlineTasks', [
+          ...offlineTasks,
+          updatedChoreWithNewId,
+        ])
+        return new Promise((resolve, reject) => {
+          // Resolve with the updated task
+          resolve(updatedChoreWithNewId)
+        })
+      } else {
+        // Call the API to update the chore
+        const resp = await SaveChore(updatedChore)
+        if (!resp || !resp.ok) {
+          throw new Error('Failed to save chore')
+        }
+        const updatedChoreRes = await resp.json()
+        if (!updatedChoreRes) {
+          throw new Error('Failed to get updated chore data')
+        }
+        // Successfully updated the chore on the server, return the updated chore
+        // update the local chores cache with the updated chore:
+        queryClient.setQueryData(['chores'], oldData => {
+          if (!oldData) return { res: [updatedChore] }
+          return {
+            res: oldData.res.map(chore =>
+              chore.id === updatedChore.id ? updatedChore : chore,
+            ),
+          }
+        })
+        return updatedChoreRes?.res || updatedChoreRes
+      }
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate the chores query to refresh the data
+      queryClient.invalidateQueries(['chores'])
+      // Invalidate history for the specific chore
+      queryClient.invalidateQueries(['choreHistory', variables.id])
+    },
+    onMutate: async updatedChore => {
+      if (!networkManager.isOnline && isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+        // Handle offline case here if needed
+        return
+      }
+    },
+  })
+}
+
+export const useChoresHistory = (initialLimit, includeMembers) => {
+  const [limit, setLimit] = useState(initialLimit) // Initially, no limit is selected
+
+  const { data, error, isLoading } = useQuery({
+    queryKey: ['choresHistory', limit],
+    queryFn: async () => {
+      const resp = await GetChoresHistory(limit, includeMembers)
+      return resp?.res || []
+    },
+    staleTime: 0,
+  })
+
+  const handleLimitChange = newLimit => {
+    setLimit(newLimit)
+  }
+
+  return { data, error, isLoading, handleLimitChange }
+}
+
+export const useChoreDetails = choreId => {
+  return useQuery({
+    queryKey: ['choreDetails', choreId],
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      var onlineChore = null
+
+      try {
+        const response = await GetChoreDetailById(choreId)
+
+        if (response && response.ok) {
+          onlineChore = await response.json()
+        }
+      } catch (error) {
+        console.error('Error fetching chore detail:', error)
+      }
+
+      // Only check offline tasks if experimental offline mode is enabled
+      if (!isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+        return onlineChore
+      }
+
+      const offlineTasks = (await localStore.getFromCache('offlineTasks')) || []
+      const offline = offlineTasks.find(task => {
+        // Match by tempId or id if it was created offline
+        return task.id === choreId || (task.tempId && task.tempId === choreId)
+      })
+
+      return { res: offline ? { ...offline } : onlineChore.res }
+    },
+  })
+}
+
+export const useChore = choreId => {
+  const queryClient = useQueryClient()
+
+  return useQuery({
+    queryKey: ['chore', choreId],
+    queryFn: async () => {
+      if (!choreId) {
+        throw new Error('Chore ID is required to fetch chore details')
+      }
+      var onlineChore = null
+
+      try {
+        const response = await GetChoreByID(choreId)
+
+        if (response && response.ok) {
+          onlineChore = await response.json()
+        }
+      } catch (error) {
+        console.error('Error fetching chore detail:', error)
+      }
+
+      // Only check offline tasks if experimental offline mode is enabled
+      if (!isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
+        return onlineChore
+      }
+
+      const offlineTasks = (await localStore.getFromCache('offlineTasks')) || []
+      const offline = offlineTasks.find(task => {
+        return (
+          String(task.id) === choreId ||
+          (task.tempId && task.tempId === choreId)
+        )
+      })
+
+      return { res: offline ? { ...offline } : onlineChore.res }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chores'])
+    },
+  })
+}
+
+export const useArchiveChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ArchiveChore,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chores'])
+    },
+  })
+}
+
+export const useUnArchiveChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: UnArchiveChore,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chores'])
+    },
+  })
+}
+
+export const useChoreHistory = choreId => {
+  return useQuery({
+    queryKey: ['choreHistory', choreId],
+    queryFn: async () => {
+      if (!choreId) {
+        throw new Error('Chore ID is required to fetch history')
+      }
+      const response = await GetChoreHistory(choreId)
+      if (response && response.ok) {
+        return await response.json()
+      }
+      throw new Error('Failed to fetch chore history')
+    },
+    enabled: !!choreId,
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache the data
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+  })
+}
+
+export const useUpdateChoreHistory = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ choreId, historyId, historyData }) =>
+      UpdateChoreHistory(choreId, historyId, historyData),
+    onSuccess: (data, { choreId }) => {
+      queryClient.invalidateQueries(['choreHistory', choreId])
+    },
+  })
+}
+
+export const useDeleteChoreHistory = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ choreId, historyId }) =>
+      DeleteChoreHistory(choreId, historyId),
+    onSuccess: (data, { choreId }) => {
+      queryClient.invalidateQueries(['choreHistory', choreId])
+    },
+  })
+}
+
+export const useMarkChoreComplete = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ choreId, body, completedDate, performer }) =>
+      MarkChoreComplete(choreId, body, completedDate, performer),
+    onSuccess: (data, { choreId }) => {
+      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries(['choreHistory', choreId])
+      queryClient.invalidateQueries(['choreDetails', choreId])
+    },
+  })
+}
+
+export const useSkipChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: SkipChore,
+    onSuccess: (data, choreId) => {
+      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries(['choreHistory', choreId])
+      queryClient.invalidateQueries(['choreDetails', choreId])
+    },
+  })
+}
+
+export const useApproveChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ApproveChore,
+    onSuccess: (data, choreId) => {
+      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries(['choreHistory', choreId])
+      queryClient.invalidateQueries(['choreDetails', choreId])
+    },
+  })
+}
+
+export const useRejectChore = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: RejectChore,
+    onSuccess: (data, choreId) => {
+      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries(['choreHistory', choreId])
+      queryClient.invalidateQueries(['choreDetails', choreId])
+    },
+  })
+}

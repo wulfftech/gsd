@@ -1,0 +1,72 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - unused
+    - ineffassign
+    - unused
+    - typecheck
+    - gofmt
+    - goimports
+    - gocyclo
+    - dupl
+    - misspell
+    - unconvert
+    - nakedret
+    - goconst
+    - gocritic
+
+linters-settings:
+
+  gocritic:
+    enabled-checks:
+      - ruleguard
+    settings:
+      ruleguard:
+        rules: rules.go
+
+  gofmt:
+    simplify: true
+
+  gocyclo:
+    min-complexity: 15
+
+  dupl:
+    threshold: 100
+
+  misspell:
+    locale: US
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - linters:
+        - errcheck
+      text: ".*error return value not checked.*"
+    - linters:
+        - dupl
+      text: ".*duplicate of.*"
+
+    - linters:
+        - misspell
+      text: "`cancelled` is a misspelling of `canceled`"
+
+    # TODO: Fix the rule violations and remove the exclusions
+    - linters:
+        - errcheck
+        - goconst
+        - gocyclo
+        - govet
+        - ineffassign
+        - staticcheck
+        - unconvert
+        - unused
+      text: ".*"

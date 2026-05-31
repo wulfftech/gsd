@@ -1,0 +1,20 @@
+# Backend
+donetick.db
+*.db
+.vscode/launch.json
+.env.local
+
+# Frontend
+ui/node_modules/
+ui/dist/
+ui/.husky/
+ui/android/
+ui/ios/
+
+# Build output
+/gsd
+/donetick
+
+# Claude worktrees
+internal/.claude/
+.claude/settings.local.json

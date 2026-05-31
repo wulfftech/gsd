@@ -1,0 +1,926 @@
+package circle
+
+import (
+	"log"
+
+	"strconv"
+	"time"
+
+	"donetick.com/core/config"
+	"donetick.com/core/internal/auth"
+	"donetick.com/core/internal/chore"
+	chRepo "donetick.com/core/internal/chore/repo"
+	cModel "donetick.com/core/internal/circle/model"
+	cRepo "donetick.com/core/internal/circle/repo"
+	pRepo "donetick.com/core/internal/points/repo"
+	"donetick.com/core/internal/storage"
+	uModel "donetick.com/core/internal/user/model"
+	uRepo "donetick.com/core/internal/user/repo"
+	"donetick.com/core/logging"
+	"github.com/gin-gonic/gin"
+)
+
+type Handler struct {
+	circleRepo           *cRepo.CircleRepository
+	userRepo             *uRepo.UserRepository
+	choreRepo            *chRepo.ChoreRepository
+	pointRepo            *pRepo.PointsRepository
+	signer               *storage.URLSignerS3
+	isDonetickDotCom     bool
+	maxCircleMembers     int
+	plusMaxCircleMembers int
+	singleCircleInstance bool
+}
+
+func NewHandler(cr *cRepo.CircleRepository, ur *uRepo.UserRepository, c *chRepo.ChoreRepository, pr *pRepo.PointsRepository,
+	signer *storage.URLSignerS3, config *config.Config) *Handler {
+	return &Handler{
+		circleRepo:           cr,
+		userRepo:             ur,
+		choreRepo:            c,
+		pointRepo:            pr,
+		signer:               signer,
+		isDonetickDotCom:     config.IsDoneTickDotCom,
+		maxCircleMembers:     config.FeatureLimits.MaxCircleMembers,
+		plusMaxCircleMembers: config.FeatureLimits.PlusCircleMaxMembers,
+		singleCircleInstance: config.SingleCircleInstance,
+	}
+}
+
+// GetCircleMembers godoc
+//
+//	@Summary		Get circle members
+//	@Description	Retrieves all members of the current user's circle
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Success		200	{object}	map[string][]cModel.UserCircleDetail	"res: array of circle members"
+//	@Failure		500	{object}	map[string]string						"error: Error getting current user"
+//	@Failure		500	{object}	map[string]string						"error: Error getting circle members"
+//	@Router			/circles/members [get]
+func (h *Handler) GetCircleMembers(c *gin.Context) {
+	// Get the circle ID from the JWT
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c) // TODO we might want to change this from 500 to 401
+	if !ok {
+		log.Error("Error getting current user")
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+
+	// Get all the members of the circle
+	members, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting circle members:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle members",
+		})
+		return
+	}
+
+	for i := range members {
+		members[i].Image = h.signer.SignIfLocal(members[i].Image)
+	}
+
+	c.JSON(200, gin.H{
+		"res": members,
+	})
+}
+
+// JoinCircle godoc
+//
+//	@Summary		Request to join a circle
+//	@Description	Requests to join a circle using an invite code
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			invite_code	query		string				true	"Invite code"
+//	@Success		200			{object}	map[string]string	"res: User Requested to join circle successfully"
+//	@Failure		400			{object}	map[string]string	"error: Invalid request"
+//	@Failure		401			{object}	map[string]string	"error: Authentication failed"
+//	@Failure		409			{object}	map[string]string	"error: You are already a member of this circle"
+//	@Failure		500			{object}	map[string]string	"error: Error adding user to circle"
+//	@Router			/circles/join [post]
+func (h *Handler) JoinCircle(c *gin.Context) {
+	// Get the circle ID from the JWT
+	log := logging.FromContext(c)
+	log.Debug("handlder.go: JoinCircle")
+	currentUser, ok := auth.CurrentUser(c)
+
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+
+	requestedCircleID := c.Query("invite_code")
+	if requestedCircleID == "" {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	circle, err := h.circleRepo.GetCircleByInviteCode(c, requestedCircleID)
+
+	if circle.ID == currentUser.CircleID {
+		c.JSON(409, gin.H{
+			"error": "You are already a member of this circle",
+		})
+		return
+	}
+	// Add the user to the circle
+	err = h.circleRepo.AddUserToCircle(c, &cModel.UserCircle{
+		CircleID: circle.ID,
+		UserID:   currentUser.ID,
+		Role:     "member",
+		IsActive: false,
+	})
+
+	if err != nil {
+		log.Error("Error adding user to circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error adding user to circle",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"res": "User Requested to join circle successfully",
+	})
+}
+
+// LeaveCircle godoc
+//
+//	@Summary		Leave a circle
+//	@Description	Removes the current user from a circle and restores their original circle
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			circle_id	query		int					true	"Circle ID"
+//	@Success		200			{object}	map[string]string	"res: User left circle successfully"
+//	@Failure		400			{object}	map[string]string	"error: Invalid request"
+//	@Failure		401			{object}	map[string]string	"error: Authentication failed"
+//	@Failure		500			{object}	map[string]string	"error: Error leaving circle"
+//	@Router			/circles/leave [delete]
+func (h *Handler) LeaveCircle(c *gin.Context) {
+	log := logging.FromContext(c)
+	log.Debug("handler.go: LeaveCircle")
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+	rawCircleID := c.Query("circle_id")
+	circleID, err := strconv.Atoi(rawCircleID)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	orginalCircleID, err := h.circleRepo.GetUserOriginalCircle(c, currentUser.ID)
+	if err != nil {
+		log.Error("Error getting user original circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting user original circle",
+		})
+		return
+	}
+
+	// START : HANDLE USER LEAVING CIRCLE
+	// bulk update chores:
+	if err := handleUserLeavingCircle(h, c, &currentUser.User, orginalCircleID); err != nil {
+		log.Error("Error handling user leaving circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error handling user leaving circle",
+		})
+		return
+	}
+
+	// END: HANDLE USER LEAVING CIRCLE
+
+	err = h.circleRepo.LeaveCircleByUserID(c, circleID, currentUser.ID)
+	if err != nil {
+		log.Error("Error leaving circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error leaving circle",
+		})
+		return
+	}
+
+	if err := h.userRepo.UpdateUserCircle(c, currentUser.ID, orginalCircleID); err != nil {
+		log.Error("Error updating user circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error updating user circle",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"res": "User left circle successfully",
+	})
+}
+
+func handleUserLeavingCircle(h *Handler, c *gin.Context, leavingUser *uModel.User, orginalCircleID int) error {
+	userAssignedCircleChores, err := h.choreRepo.GetChores(c, leavingUser.CircleID, leavingUser.ID, true)
+	if err != nil {
+		return err
+	}
+	for _, ch := range userAssignedCircleChores {
+
+		if ch.CreatedBy == leavingUser.ID && (ch.AssignedTo == nil || *ch.AssignedTo != leavingUser.ID) {
+			ch.AssignedTo = &leavingUser.ID
+			ch.UpdatedAt = time.Now().UTC()
+			ch.UpdatedBy = leavingUser.ID
+			ch.CircleID = orginalCircleID
+		} else if ch.CreatedBy != leavingUser.ID && (ch.AssignedTo != nil && *ch.AssignedTo == leavingUser.ID) {
+			chore.RemoveAssigneeAndReassign(ch, leavingUser.ID)
+		}
+
+	}
+
+	h.choreRepo.UpdateChores(c, userAssignedCircleChores)
+	h.choreRepo.RemoveChoreAssigneeByCircleID(c, leavingUser.ID, leavingUser.CircleID)
+	h.circleRepo.AssignDefaultCircle(c, leavingUser.ID)
+	return nil
+}
+
+// DeleteCircleMember godoc
+//
+//	@Summary		Delete a circle member
+//	@Description	Removes a member from a circle (admin only)
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			id			path		int					true	"Circle ID"
+//	@Param			member_id	query		int					true	"Member ID to delete"
+//	@Success		200			{object}	map[string]string	"res: User deleted from circle successfully"
+//	@Failure		400			{object}	map[string]string	"error: Invalid request"
+//	@Failure		401			{object}	map[string]string	"error: Authentication failed"
+//	@Failure		403			{object}	map[string]string	"error: You are not an admin of this circle"
+//	@Failure		500			{object}	map[string]string	"error: Error deleting circle member"
+//	@Router			/circles/{id}/members/delete [delete]
+func (h *Handler) DeleteCircleMember(c *gin.Context) {
+	log := logging.FromContext(c)
+	log.Debug("handler.go: DeleteCircleMember")
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+	rawCircleID := c.Param("id")
+	circleID, err := strconv.Atoi(rawCircleID)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+	rawMemeberIDToDeleted := c.Query("member_id")
+	memberIDToDeleted, err := strconv.Atoi(rawMemeberIDToDeleted)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+	admins, err := h.circleRepo.GetCircleAdmins(c, circleID)
+	if err != nil {
+		log.Error("Error getting circle admins:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle admins",
+		})
+		return
+	}
+	isAdmin := false
+	for _, admin := range admins {
+		if admin.UserID == currentUser.ID {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		c.JSON(403, gin.H{
+			"error": "You are not an admin of this circle",
+		})
+		return
+	}
+	orginalCircleID, err := h.circleRepo.GetUserOriginalCircle(c, memberIDToDeleted)
+	if handleUserLeavingCircle(h, c, &uModel.User{ID: memberIDToDeleted, CircleID: circleID}, orginalCircleID) != nil {
+		log.Error("Error handling user leaving circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error handling user leaving circle",
+		})
+		return
+	}
+
+	err = h.circleRepo.DeleteMemberByID(c, circleID, memberIDToDeleted)
+	if err != nil {
+		log.Error("Error deleting circle member:", err)
+		c.JSON(500, gin.H{
+			"error": "Error deleting circle member",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"res": "User deleted from circle successfully",
+	})
+}
+
+// GetUserCircles godoc
+//
+//	@Summary		Get user circles
+//	@Description	Retrieves all circles the current user belongs to
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Success		200	{object}	map[string][]cModel.Circle	"res: array of circles"
+//	@Failure		401	{object}	map[string]string			"error: Authentication failed"
+//	@Failure		500	{object}	map[string]string			"error: Error getting user circles"
+//	@Router			/circles [get]
+func (h *Handler) GetUserCircles(c *gin.Context) {
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+
+	circles, err := h.circleRepo.GetUserCircles(c, currentUser.ID)
+	if err != nil {
+		log.Error("Error getting user circles:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting user circles",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"res": circles,
+	})
+}
+
+// GetPendingCircleMembers godoc
+//
+//	@Summary		Get pending join requests
+//	@Description	Retrieves pending circle join requests (admin only)
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Success		200	{object}	map[string][]cModel.UserCircleDetail	"res: array of pending members"
+//	@Failure		401	{object}	map[string]string						"error: Authentication failed"
+//	@Failure		403	{object}	map[string]string						"error: You are not an admin of this circle"
+//	@Failure		500	{object}	map[string]string						"error: Error getting pending circle members"
+//	@Router			/circles/members/requests [get]
+func (h *Handler) GetPendingCircleMembers(c *gin.Context) {
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+
+	currentMemebers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting circle members:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle members",
+		})
+		return
+	}
+
+	// confirm that the current user is an admin:
+	isAdmin := false
+	for _, member := range currentMemebers {
+		if member.UserID == currentUser.ID && member.Role == "admin" {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		c.JSON(403, gin.H{
+			"error": "You are not an admin of this circle",
+		})
+		return
+	}
+
+	members, err := h.circleRepo.GetPendingJoinRequests(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting pending circle members:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting pending circle members",
+		})
+		return
+	}
+
+	for i := range members {
+		members[i].Image = h.signer.SignIfLocal(members[i].Image)
+	}
+
+	c.JSON(200, gin.H{
+		"res": members,
+	})
+}
+
+// AcceptJoinRequest godoc
+//
+//	@Summary		Accept a join request
+//	@Description	Accepts a pending circle join request (admin only)
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			requestId	query		int					true	"Request ID"
+//	@Success		200			{object}	map[string]string	"res: Join request accepted successfully"
+//	@Failure		400			{object}	map[string]string	"error: Invalid request / Circle is full"
+//	@Failure		401			{object}	map[string]string	"error: Authentication failed"
+//	@Failure		403			{object}	map[string]string	"error: You are not an admin of this circle"
+//	@Failure		500			{object}	map[string]string	"error: Error accepting join request"
+//	@Router			/circles/members/requests/accept [put]
+func (h *Handler) AcceptJoinRequest(c *gin.Context) {
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+
+	rawRequestID := c.Query("requestId")
+	requestID, err := strconv.Atoi(rawRequestID)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	currentMembers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	// filter to the active members only:
+	activeMembers := make([]*cModel.UserCircleDetail, 0)
+	for _, member := range currentMembers {
+		if member.IsActive {
+			activeMembers = append(activeMembers, member)
+		}
+	}
+	if err != nil {
+		log.Error("Error getting circle members:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle members",
+		})
+		return
+	}
+	if h.isDonetickDotCom {
+		maxMembers := h.maxCircleMembers
+		if currentUser.IsPlusMember() {
+			maxMembers = h.plusMaxCircleMembers
+		}
+		if len(activeMembers) >= maxMembers {
+			log.Error("Circle is full")
+			c.JSON(400, gin.H{
+				"error": "Circle is full, you can only have " + strconv.Itoa(maxMembers) + " members in a circle",
+			})
+			return
+		}
+	}
+	// confirm that the current user is an admin:
+	isAdmin := false
+	for _, member := range currentMembers {
+		if member.UserID == currentUser.ID && member.Role == "admin" {
+			isAdmin = true
+			break
+		}
+	}
+	if !isAdmin {
+		c.JSON(403, gin.H{
+			"error": "You are not an admin of this circle",
+		})
+		return
+	}
+	pendingRequests, err := h.circleRepo.GetPendingJoinRequests(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting pending circle members:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting pending circle members",
+		})
+		return
+	}
+	isActiveRequest := false
+	var requestedCircle *cModel.UserCircleDetail
+	for _, request := range pendingRequests {
+		if request.ID == requestID {
+			requestedCircle = request
+			isActiveRequest = true
+			break
+		}
+	}
+	if !isActiveRequest {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	err = h.circleRepo.AcceptJoinRequest(c, currentUser.CircleID, requestID)
+	if err != nil {
+		log.Error("Error accepting join request:", err)
+		c.JSON(500, gin.H{
+			"error": "Error accepting join request",
+		})
+		return
+	}
+
+	if err := h.userRepo.UpdateUserCircle(c, requestedCircle.UserID, currentUser.CircleID); err != nil {
+		log.Error("Error updating user circle:", err)
+		c.JSON(500, gin.H{
+			"error": "Error updating user circle",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"res": "Join request accepted successfully",
+	})
+
+}
+
+// DepositPoints godoc
+//
+//	@Summary		Deposit points to a member
+//	@Description	Deposits points to a circle member's balance (admin only)
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			id		path		int								true	"Circle ID"
+//	@Param			points	body		object{points=int,userId=int}	true	"Points deposit request"
+//	@Success		200		{object}	map[string]string				"res: Points deposited successfully"
+//	@Failure		400		{object}	map[string]string				"error: Invalid request / User is not a member of this circle"
+//	@Failure		401		{object}	map[string]string				"error: Authentication failed"
+//	@Failure		403		{object}	map[string]string				"error: You are not an admin of this circle"
+//	@Failure		500		{object}	map[string]string				"error: Error depositing points"
+//	@Router			/circles/{id}/members/points/deposit [post]
+func (h *Handler) DepositPoints(c *gin.Context) {
+	type DepositPointsRequest struct {
+		Points int `json:"points"`
+		UserID int `json:"userId"`
+	}
+
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+
+	var depositReq DepositPointsRequest
+	if err := c.ShouldBindJSON(&depositReq); err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	if depositReq.Points <= 0 {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	circleIdRaw := c.Param("id")
+	circleID, err := strconv.Atoi(circleIdRaw)
+	if err != nil {
+		log.Error("Error depositing points: invalid circle id")
+		c.JSON(400, gin.H{
+			"error": "Invalid request: invalid circle id",
+		})
+		return
+	}
+
+	if circleID != currentUser.CircleID {
+		log.Error("You are not a member of this circle")
+		c.JSON(400, gin.H{
+			"error": "You are not a member of this circle",
+		})
+		return
+	}
+
+	members, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting circle members:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle members",
+		})
+		return
+	}
+
+	isAdmin := false
+	isValidMember := false
+	for _, user := range members {
+		if user.UserID == currentUser.ID && user.Role == "admin" {
+			isAdmin = true
+		}
+		if user.UserID == depositReq.UserID {
+			isValidMember = true
+		}
+	}
+
+	if !isAdmin {
+		log.Error("Error depositing points: user is not an admin of this circle")
+		c.JSON(403, gin.H{
+			"error": "You are not an admin of this circle",
+		})
+		return
+	}
+	if !isValidMember {
+		log.Error("Error depositing points: user is not a member of this circle")
+		c.JSON(400, gin.H{
+			"error": "User is not a member of this circle",
+		})
+		return
+	}
+
+	err = h.circleRepo.DepositPoints(c, currentUser.CircleID, depositReq.UserID, depositReq.Points, currentUser.ID)
+	if err != nil {
+		log.Error("Error depositing points:", err)
+		c.JSON(500, gin.H{
+			"error": "Error depositing points",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"res": "Points deposited successfully",
+	})
+}
+
+// RedeemPoints godoc
+//
+//	@Summary		Redeem member points
+//	@Description	Redeems points for a circle member (admin only)
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			id		path		int								true	"Circle ID"
+//	@Param			points	body		object{points=int,userId=int}	true	"Points redemption request"
+//	@Success		200		{object}	map[string]string				"res: Points redeemed successfully"
+//	@Failure		400		{object}	map[string]string				"error: Invalid request / User does not have enough points / User is not a member of this circle"
+//	@Failure		401		{object}	map[string]string				"error: Authentication failed"
+//	@Failure		403		{object}	map[string]string				"error: You are not an admin of this circle"
+//	@Failure		500		{object}	map[string]string				"error: Error redeeming points"
+//	@Router			/circles/{id}/members/points/redeem [post]
+func (h *Handler) RedeemPoints(c *gin.Context) {
+	type RedeemPointsRequest struct {
+		Points int `json:"points"`
+		UserID int `json:"userId"`
+	}
+
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+	// parse body:
+	var redeemReq RedeemPointsRequest
+
+	if err := c.ShouldBindJSON(&redeemReq); err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+
+	}
+
+	if redeemReq.Points <= 0 {
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+	circleIdRaw := c.Param("id")
+
+	circleID, err := strconv.Atoi(circleIdRaw)
+	if err != nil {
+		log.Error("Error redeeming points: invalid circle id")
+		c.JSON(400, gin.H{
+			"error": "Invalid request: invalid circle id",
+		})
+		return
+	}
+	if circleID != currentUser.CircleID {
+		log.Error("You are not a member of this circle")
+		c.JSON(400, gin.H{
+			"error": "You are not a member of this circle",
+		})
+		return
+	}
+	members, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting circle admins:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle admins",
+		})
+		return
+	}
+	isAdmin := false
+	isValidMember := false
+	var member *cModel.UserCircleDetail
+	for _, user := range members {
+		if user.UserID == currentUser.ID && user.Role == "admin" {
+			isAdmin = true
+		}
+		if user.UserID == redeemReq.UserID {
+			isValidMember = true
+			member = user
+		}
+
+	}
+
+	if !isAdmin {
+		log.Error("Error redeeming points: user is not an admin of this circle")
+		c.JSON(403, gin.H{
+			"error": "You are not an admin of this circle",
+		})
+		return
+	}
+	if !isValidMember {
+		log.Error("Error redeeming points: user is not a member of this circle")
+		c.JSON(400, gin.H{
+			"error": "User is not a member of this circle",
+		})
+		return
+	}
+	if member.Points-redeemReq.Points < 0 {
+		log.Error("Error redeeming points: user does not have enough points")
+		c.JSON(400, gin.H{
+			"error": "User does not have enough points",
+		})
+		return
+	}
+
+	err = h.circleRepo.RedeemPoints(c, currentUser.CircleID, redeemReq.UserID, redeemReq.Points, currentUser.ID)
+	if err != nil {
+		log.Error("Error redeeming points:", err)
+		c.JSON(500, gin.H{
+			"error": "Error redeeming points",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"res": "Points redeemed successfully",
+	})
+}
+
+// ChangeMemberRole godoc
+//
+//	@Summary		Change member role
+//	@Description	Changes the role of a circle member (admin only)
+//	@Tags			circles
+//	@Accept			json
+//	@Produce		json
+//	@Security		JWTKeyAuth
+//	@Security		APIKeyAuth
+//	@Param			role	body		object{memberId=int,role=cModel.Role}	true	"Role change request"
+//	@Success		200		{object}	map[string]string						"res: Member role changed successfully"
+//	@Failure		400		{object}	map[string]string						"error: Invalid request / Invalid role / User is not a member of this circle"
+//	@Failure		401		{object}	map[string]string						"error: Authentication failed"
+//	@Failure		403		{object}	map[string]string						"error: You are not an admin of this circle"
+//	@Failure		500		{object}	map[string]string						"error: Error changing member role"
+//	@Router			/circles/members/role [put]
+func (h *Handler) ChangeMemberRole(c *gin.Context) {
+	log := logging.FromContext(c)
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(500, gin.H{
+			"error": "Error getting current user",
+		})
+		return
+	}
+	type changeRoleRequest struct {
+		MemberID int         `json:"memberId"`
+		Role     cModel.Role `json:"role"`
+	}
+	var req changeRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Error("Error changing member role:", err)
+		c.JSON(400, gin.H{
+			"error": "Invalid request",
+		})
+		return
+	}
+
+	if !cModel.IsValidRole(req.Role) {
+		log.Error("Error changing member role: invalid role")
+		c.JSON(400, gin.H{
+			"error": "Invalid role",
+		})
+		return
+	}
+
+	users, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		log.Error("Error getting circle admins:", err)
+		c.JSON(500, gin.H{
+			"error": "Error getting circle admins",
+		})
+		return
+	}
+	isAdmin := false
+	memberFound := false
+	adminCount := 0
+	for _, user := range users {
+		if user.Role == "admin" {
+			adminCount++
+			if user.UserID == currentUser.ID {
+				isAdmin = true
+			}
+		}
+		if user.UserID == req.MemberID {
+			memberFound = true
+		}
+	}
+	if !isAdmin {
+		c.JSON(403, gin.H{
+			"error": "You are not an admin of this circle",
+		})
+		return
+	}
+	if !memberFound {
+		c.JSON(400, gin.H{
+			"error": "User is not a member of this circle",
+		})
+		return
+	}
+
+	err = h.circleRepo.ChangeUserRole(c, currentUser.CircleID, req.MemberID, req.Role)
+	if err != nil {
+		log.Error("Error changing member role:", err)
+		c.JSON(500, gin.H{
+			"error": "Error changing member role",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"res": "Member role changed successfully",
+	})
+
+}
+
+func Routes(router *gin.Engine, h *Handler, multiAuthMiddleware *auth.MultiAuthMiddleware) {
+	log.Println("Registering circle routes")
+
+	circleRoutes := router.Group("api/v1/circles")
+	circleRoutes.Use(multiAuthMiddleware.MiddlewareFunc())
+	{
+		circleRoutes.GET("/members", h.GetCircleMembers)
+		circleRoutes.GET("/members/requests", h.GetPendingCircleMembers)
+		circleRoutes.PUT("/members/role", h.ChangeMemberRole)
+		circleRoutes.GET("/", h.GetUserCircles)
+		circleRoutes.POST("/:id/members/points/redeem", h.RedeemPoints)
+		circleRoutes.POST("/:id/members/points/deposit", h.DepositPoints)
+
+		if !h.singleCircleInstance {
+			circleRoutes.PUT("/members/requests/accept", h.AcceptJoinRequest)
+			circleRoutes.POST("/join", h.JoinCircle)
+			circleRoutes.DELETE("/leave", h.LeaveCircle)
+			circleRoutes.DELETE("/:id/members/delete", h.DeleteCircleMember)
+		}
+	}
+}

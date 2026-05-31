@@ -1,0 +1,22 @@
+services:
+  gsd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gsd
+    restart: unless-stopped
+    ports:
+      - 2021:2021
+    volumes:
+      - /srv/donetick/data:/donetick-data
+      - /srv/donetick/config:/config
+    environment:
+      - DT_ENV=selfhosted
+      - DT_SQLITE_PATH=/donetick-data/donetick.db
+      - TZ=Australia/Perth
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:2021/api/v1/health || exit 1
+      start_period: 1m
+      timeout: 5s
+      interval: 1m
+      retries: 3

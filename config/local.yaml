@@ -1,0 +1,83 @@
+name: "local"
+is_done_tick_dot_com: true
+is_user_creation_disabled: false
+telegram:
+  token: ""
+pushover:
+  token: ""
+database:
+  type: "sqlite"
+  migration: true
+  # these are only required for postgres
+  host: "secret"
+  port: 5432
+  user: "secret"
+  password: "secret"
+  name: "secret"
+jwt:
+  # JWT secret must be at least 32 characters long and cryptographically secure
+  # Generate one with: openssl rand -base64 32
+  # Or use the suggested value from the application startup error message
+  secret: "change_this_to_a_secure_random_string_32_characters_long"
+  session_time: 1h        # Token valid for 1 hour (access token lifetime)
+  max_refresh: 24h       # Can refresh for 24 hours from original login (24h)
+server:
+  port: 2021
+  read_timeout: 10s
+  write_timeout: 10s
+  rate_period: 60s
+  rate_limit: 300
+  cors_allow_origins:
+    - "http://localhost:5173"
+    - "http://localhost:7926"
+  serve_frontend: true
+  serve_swagger: true
+logging:
+  level: "debug"
+  encoding: "console"
+  development: true
+scheduler_jobs:
+  due_job: 30m
+  overdue_job: 3h
+  pre_due_job: 3h
+email:
+  host: 
+  port: 
+  key: 
+  email:
+  user:  
+  appHost:  
+mfa:
+  session_timeout: 10m
+  backup_code_count: 8
+  rate_limit_attempts: 5
+  rate_limit_window: 15m 
+storage:
+  max_user_storage:
+  max_file_size:
+  bucket_name: 
+  region: 
+  base_path:
+  access_key: 
+  secret_key: 
+  endpoint:
+realtime:
+  enabled: true
+  sse_enabled: true
+  heartbeat_interval: 60s
+  connection_timeout: 120s
+  max_connections: 1000
+  max_connections_per_user: 5
+  event_queue_size: 2048
+  cleanup_interval: 2m
+  stale_threshold: 5m
+  enable_compression: true
+  enable_stats: true
+  allowed_origins:
+    - "*"
+
+donetick_cloud:
+  google_client_id: ""
+  google_android_client_id: ""
+  google_ios_client_id: ""
+  apple_client_id: "com.donetick.app"
