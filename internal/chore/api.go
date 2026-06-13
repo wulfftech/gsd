@@ -376,6 +376,212 @@ func (h *API) CompleteChore(c *gin.Context) {
 	)
 }
 
+func (h *API) SkipChore(c *gin.Context) {
+	log := logging.FromContext(c)
+	choreIDRaw := c.Param("id")
+	choreID, err := strconv.Atoi(choreIDRaw)
+	if err != nil {
+		log.Debugw("chore.api.SkipChore failed to parse chore ID", "error", err)
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	currentUser := auth.MustCurrentUser(c)
+	performer := currentUser.ID
+	if completedByRaw := c.Query("completedBy"); completedByRaw != "" {
+		if completedBy, errParse := strconv.Atoi(completedByRaw); errParse == nil && completedBy != 0 {
+			performer = completedBy
+		}
+	}
+
+	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	if err != nil {
+		log.Errorw("chore.api.SkipChore failed to get chore", "error", err)
+		c.JSON(500, gin.H{"error": "Error getting chore"})
+		return
+	}
+
+	// user need to be assigned to the chore to skip it
+	circleUsers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		log.Errorw("chore.api.SkipChore failed to retrieve circle users", "error", err)
+		c.JSON(500, gin.H{"error": "Failed to retrieve circle users"})
+		return
+	}
+	if !chore.CanComplete(performer, circleUsers) {
+		log.Debugw("chore.api.SkipChore user is not assigned to chore", "userID", performer, "choreID", choreID)
+		c.JSON(400, gin.H{"error": "User is not assigned to chore"})
+		return
+	}
+
+	if chore.NextDueDate == nil {
+		c.JSON(400, gin.H{"error": "Chore has no due date to skip"})
+		return
+	}
+	nextDueDate, err := scheduleNextDueDate(c, chore, chore.NextDueDate.UTC())
+	if err != nil {
+		log.Debugw("chore.api.SkipChore failed to schedule next due date", "error", err)
+		c.JSON(500, gin.H{"error": "Error scheduling next due date"})
+		return
+	}
+
+	if err := h.choreRepo.SkipChore(c, chore, performer, nextDueDate, chore.AssignedTo); err != nil {
+		log.Errorw("chore.api.SkipChore failed to skip chore", "error", err)
+		c.JSON(500, gin.H{"error": "Error skipping chore"})
+		return
+	}
+
+	updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Error getting chore"})
+		return
+	}
+	h.eventProducer.ChoreSkipped(c, currentUser.WebhookURL, updatedChore, &currentUser.User)
+	c.JSON(200, updatedChore)
+}
+
+func (h *API) ApproveChore(c *gin.Context) {
+	log := logging.FromContext(c)
+	choreID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
+	currentUser := auth.MustCurrentUser(c)
+
+	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	if err != nil {
+		log.Errorw("chore.api.ApproveChore failed to get chore", "error", err)
+		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
+		return
+	}
+
+	circleUsers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve circle users"})
+		return
+	}
+	if !currentUser.IsAdminOrManager(circleUsers) {
+		c.JSON(403, gin.H{"error": "Only admins can approve chores"})
+		return
+	}
+	if chore.Status != chModel.ChoreStatusPendingApproval {
+		c.JSON(400, gin.H{"error": "Chore is not pending approval"})
+		return
+	}
+
+	allHistory, err := h.choreRepo.GetChoreHistory(c, chore.ID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch chore history for approval process"})
+		return
+	}
+	var pendingHistory *chModel.ChoreHistory
+	for _, hist := range allHistory {
+		if hist.Status == chModel.ChoreHistoryStatusPendingApproval {
+			pendingHistory = hist
+			break
+		}
+	}
+	if pendingHistory == nil {
+		c.JSON(500, gin.H{"error": "No pending approval history found"})
+		return
+	}
+
+	completedBy := pendingHistory.CompletedBy
+	completedDate := *pendingHistory.PerformedAt
+
+	var nextDueDate *time.Time
+	if chore.FrequencyType == "adaptive" {
+		histLimited, errH := h.choreRepo.GetChoreHistoryWithLimit(c, chore.ID, 5)
+		if errH != nil {
+			c.JSON(500, gin.H{"error": "Failed to fetch chore history for adaptive scheduling"})
+			return
+		}
+		nextDueDate, err = scheduleAdaptiveNextDueDate(chore, completedDate, histLimited)
+	} else {
+		nextDueDate, err = scheduleNextDueDate(c, chore, completedDate.UTC())
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Error scheduling next due date"})
+		return
+	}
+
+	nextAssignedTo, err := checkNextAssignee(chore, allHistory, completedBy)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Error checking next assignee"})
+		return
+	}
+
+	if err := h.choreRepo.ApproveChore(c, chore, currentUser.ID, nextDueDate, nextAssignedTo, true); err != nil {
+		c.JSON(500, gin.H{"error": "Error approving chore"})
+		return
+	}
+
+	updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
+		return
+	}
+	if updatedChore.SubTasks != nil && updatedChore.FrequencyType != chModel.FrequencyTypeOnce {
+		h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID)
+	}
+	h.nPlanner.GenerateNotifications(c, updatedChore)
+	h.eventProducer.ChoreCompleted(c, currentUser.WebhookURL, chore, &currentUser.User)
+	c.JSON(200, updatedChore)
+}
+
+func (h *API) RejectChore(c *gin.Context) {
+	log := logging.FromContext(c)
+	choreID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
+	currentUser := auth.MustCurrentUser(c)
+
+	var req struct {
+		Note string `json:"note"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	if err != nil {
+		log.Errorw("chore.api.RejectChore failed to get chore", "error", err)
+		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
+		return
+	}
+
+	circleUsers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve circle users"})
+		return
+	}
+	if !currentUser.IsAdminOrManager(circleUsers) {
+		c.JSON(403, gin.H{"error": "Only admins can reject chores"})
+		return
+	}
+	if chore.Status != chModel.ChoreStatusPendingApproval {
+		c.JSON(400, gin.H{"error": "Chore is not pending approval"})
+		return
+	}
+
+	var rejectionNote *string
+	if req.Note != "" {
+		rejectionNote = &req.Note
+	}
+	if err := h.choreRepo.RejectChore(c, choreID, rejectionNote); err != nil {
+		c.JSON(500, gin.H{"error": "Error rejecting chore"})
+		return
+	}
+
+	updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
+		return
+	}
+	c.JSON(200, updatedChore)
+}
+
 func (h *API) GetCircleMembers(c *gin.Context) {
 	currentUser := auth.MustCurrentUser(c)
 	users, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
@@ -433,10 +639,13 @@ func APIs(cfg *config.Config, api *API, r *gin.Engine, auth *jwt.GinJWTMiddlewar
 		utils.TimeoutMiddleware(cfg.Server.WriteTimeout),
 		utils.RateLimitMiddleware(limiter),
 		authMiddleware.APITokenMiddleware(userRepo),
-		authMiddleware.RequirePlusMemberMiddleware(),
+		authMiddleware.RequirePlusMemberMiddleware(cfg),
 	)
 	{
 		tasksPlusAPI.POST("/:id/complete", api.CompleteChore)
+		tasksPlusAPI.POST("/:id/skip", api.SkipChore)
+		tasksPlusAPI.POST("/:id/approve", api.ApproveChore)
+		tasksPlusAPI.POST("/:id/reject", api.RejectChore)
 		tasksPlusAPI.PUT("/:id", api.UpdateChore)
 	}
 
@@ -445,7 +654,7 @@ func APIs(cfg *config.Config, api *API, r *gin.Engine, auth *jwt.GinJWTMiddlewar
 		utils.TimeoutMiddleware(cfg.Server.WriteTimeout),
 		utils.RateLimitMiddleware(limiter),
 		authMiddleware.APITokenMiddleware(userRepo),
-		authMiddleware.RequirePlusMemberMiddleware(),
+		authMiddleware.RequirePlusMemberMiddleware(cfg),
 	)
 	{
 		circleAPI.GET("/members", api.GetCircleMembers)

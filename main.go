@@ -142,6 +142,7 @@ func main() {
 		// Rewards:
 		fx.Provide(rRepo.NewRewardRepository),
 		fx.Provide(reward.NewHandler),
+		fx.Provide(reward.NewAPI),
 
 		// Projects:
 		fx.Provide(pjRepo.NewProjectRepository),
@@ -203,6 +204,7 @@ func main() {
 			project.Routes,
 			filter.Routes,
 			reward.Routes,
+			reward.APIs,
 
 			storage.Routes,
 			frontend.Routes,

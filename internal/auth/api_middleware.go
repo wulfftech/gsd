@@ -3,6 +3,7 @@ package auth
 import (
 	"net/http"
 
+	"donetick.com/core/config"
 	"donetick.com/core/internal/mfa"
 	uModel "donetick.com/core/internal/user/model"
 	uRepo "donetick.com/core/internal/user/repo"
@@ -131,9 +132,17 @@ func RequireMFAMiddleware() gin.HandlerFunc {
 	})
 }
 
-// RequirePlusMemberMiddleware requires that the authenticated user is a plus member
-func RequirePlusMemberMiddleware() gin.HandlerFunc {
+// RequirePlusMemberMiddleware requires that the authenticated user is a plus member.
+// On self-hosted instances (not donetick.com) the Plus tier is meaningless, so the
+// check is bypassed entirely — every self-hoster gets the full external API.
+func RequirePlusMemberMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
+		// Self-hosted: no subscription concept, allow through.
+		if !cfg.IsDoneTickDotCom {
+			c.Next()
+			return
+		}
+
 		// Get current user from context (should be set by APITokenMiddleware)
 		user, exists := c.Get(identityKey)
 		if !exists {
