@@ -67,6 +67,7 @@ func (h *AuthHandler) RefreshTokenHandler(c *gin.Context) {
 	}
 
 	// Set new refresh token as httpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("refresh_token", tokenResponse.RefreshToken, int(h.tokenService.refreshTokenExpiry.Seconds()), "/", "", true, true)
 
 	c.JSON(http.StatusOK, tokenResponse)
@@ -96,6 +97,7 @@ func (h *AuthHandler) LogoutHandler(c *gin.Context) {
 	}
 
 	// Clear the httpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -124,6 +126,7 @@ func (h *AuthHandler) RevokeAllHandler(c *gin.Context) {
 	}
 
 	// Clear the httpOnly cookie since all sessions are revoked
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -196,6 +199,7 @@ func (h *AuthHandler) EnhancedLoginHandler(c *gin.Context) {
 		})
 		return
 	}
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("refresh_token", tokenResponse.RefreshToken, int(h.tokenService.refreshTokenExpiry.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, tokenResponse)
 }

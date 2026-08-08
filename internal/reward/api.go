@@ -12,6 +12,7 @@ import (
 	"donetick.com/core/internal/utils"
 	"donetick.com/core/logging"
 	"github.com/gin-gonic/gin"
+	limiter "github.com/ulule/limiter/v3"
 )
 
 // API exposes the rewards catalog and redemption flow over the external
@@ -132,10 +133,11 @@ func (h *API) FulfillRedemption(c *gin.Context) {
 	c.JSON(200, gin.H{"res": "Redemption fulfilled"})
 }
 
-func APIs(cfg *config.Config, api *API, r *gin.Engine, userRepo *uRepo.UserRepository) {
+func APIs(cfg *config.Config, api *API, r *gin.Engine, limiter *limiter.Limiter, userRepo *uRepo.UserRepository) {
 	rewardsAPI := r.Group("eapi/v1/rewards")
 	rewardsAPI.Use(
 		utils.TimeoutMiddleware(cfg.Server.WriteTimeout),
+		utils.RateLimitMiddleware(limiter),
 		authMiddleware.APITokenMiddleware(userRepo),
 	)
 	{

@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
@@ -249,7 +250,11 @@ func (h *Handler) markTaskDone(c *gin.Context) {
 		}
 	}
 
-	if err := h.pRepo.MarkTaskDone(c, taskID, projectID, currentUser.ID); err != nil {
+	if err := h.pRepo.MarkTaskDone(c, taskID, projectID, currentUser.CircleID, currentUser.ID); err != nil {
+		if errors.Is(err, pRepo.ErrProjectTaskNotFound) {
+			c.JSON(404, gin.H{"error": "Task not found"})
+			return
+		}
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -288,6 +293,10 @@ func (h *Handler) approveTask(c *gin.Context) {
 	completedProject, err := h.pRepo.ApproveTask(c, taskID, projectID, currentUser.CircleID, currentUser.ID)
 	if err != nil {
 		log.Error("approve task failed", "err", err)
+		if errors.Is(err, pRepo.ErrProjectTaskNotFound) {
+			c.JSON(404, gin.H{"error": "Task not found"})
+			return
+		}
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -328,7 +337,11 @@ func (h *Handler) rejectTask(c *gin.Context) {
 		return
 	}
 
-	if err := h.pRepo.RejectTask(c, taskID, projectID); err != nil {
+	if err := h.pRepo.RejectTask(c, taskID, projectID, currentUser.CircleID); err != nil {
+		if errors.Is(err, pRepo.ErrProjectTaskNotFound) {
+			c.JSON(404, gin.H{"error": "Task not found"})
+			return
+		}
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -358,7 +371,7 @@ func (h *Handler) reopenProject(c *gin.Context) {
 		return
 	}
 
-	if err := h.pRepo.ReopenProject(c, projectID, currentUser.CircleID); err != nil {
+	if err := h.pRepo.ReopenProject(c, projectID, currentUser.CircleID, currentUser.ID); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}

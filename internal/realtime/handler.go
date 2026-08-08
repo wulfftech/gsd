@@ -10,6 +10,7 @@ import (
 	uModel "donetick.com/core/internal/user/model"
 	"donetick.com/core/logging"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 )
 
@@ -70,7 +71,8 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	circleID := circleIDInterface.(int)
 
 	// Upgrade HTTP connection to WebSocket
-	conn, err := WebSocketUpgrader.Upgrade(c.Writer, c.Request, nil)
+	upgrader := h.getWebSocketUpgrader()
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		h.logger.Errorw("Failed to upgrade WebSocket connection",
 			"error", err,
@@ -121,6 +123,33 @@ func (h *WebSocketHandler) generateConnectionID() string {
 	bytes := make([]byte, 16)
 	rand.Read(bytes)
 	return hex.EncodeToString(bytes)
+}
+
+// getWebSocketUpgrader returns a WebSocket upgrader with proper origin checking
+func (h *WebSocketHandler) getWebSocketUpgrader() websocket.Upgrader {
+	return websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			// If "*" is in allowed origins, allow all
+			for _, origin := range h.config.RealTimeConfig.AllowedOrigins {
+				if origin == "*" {
+					return true
+				}
+			}
+
+			// Check if request origin matches allowed origins
+			requestOrigin := r.Header.Get("Origin")
+			for _, allowedOrigin := range h.config.RealTimeConfig.AllowedOrigins {
+				if requestOrigin == allowedOrigin {
+					return true
+				}
+			}
+
+			// If no origins configured or no match, deny
+			return false
+		},
+	}
 }
 
 // HandleHealthCheck provides health check endpoint for the real-time service

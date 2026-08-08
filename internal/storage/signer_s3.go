@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"strings"
@@ -21,6 +24,7 @@ type URLSignerS3 struct {
 	storage    *S3Storage
 	PublicHost string
 	PublicRead bool
+	Secret     []byte
 }
 
 func NewURLSignerS3(storage *S3Storage, config *config.Config) *URLSignerS3 {
@@ -28,6 +32,7 @@ func NewURLSignerS3(storage *S3Storage, config *config.Config) *URLSignerS3 {
 		storage:    storage,
 		PublicHost: config.Storage.PublicHost,
 		PublicRead: config.Storage.PublicRead,
+		Secret:     []byte(config.Jwt.Secret),
 	}
 }
 
@@ -68,9 +73,15 @@ func (s *URLSignerS3) Sign(rawPath string) (string, error) {
 	return urlStr, nil
 }
 
-func (s *URLSignerS3) IsValid(rawPath string, providedSig string) bool {
+func (s *URLSignerS3) sign(rawPath string) string {
+	mac := hmac.New(sha256.New, s.Secret)
+	mac.Write([]byte(rawPath))
+	return hex.EncodeToString(mac.Sum(nil))
+}
 
-	return true
+func (s *URLSignerS3) IsValid(rawPath string, providedSig string) bool {
+	expectedSig := s.sign(rawPath)
+	return hmac.Equal([]byte(expectedSig), []byte(providedSig))
 }
 
 // SignIfLocal returns a fetchable URL for a locally-stored path (by calling

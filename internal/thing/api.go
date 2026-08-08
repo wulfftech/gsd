@@ -17,6 +17,7 @@ import (
 	"donetick.com/core/logging"
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
+	limiter "github.com/ulule/limiter/v3"
 )
 
 type API struct {
@@ -185,19 +186,20 @@ func validateUserAndThing(c *gin.Context, h *API) (*tModel.Thing, bool) {
 	return thing, false
 }
 
-func APIs(cfg *config.Config, w *API, r *gin.Engine, auth *jwt.GinJWTMiddleware, userRepo *uRepo.UserRepository) {
+func APIs(cfg *config.Config, w *API, r *gin.Engine, auth *jwt.GinJWTMiddleware, limiter *limiter.Limiter, userRepo *uRepo.UserRepository) {
 
 	thingsAPI := r.Group("eapi/v1/things")
 
 	thingsAPI.Use(
 		utils.TimeoutMiddleware(cfg.Server.WriteTimeout),
+		utils.RateLimitMiddleware(limiter),
 		authMiddleware.APITokenMiddleware(userRepo),
 	)
 	{
 		thingsAPI.GET("/:id/state/change", w.ChangeThingState)
 		thingsAPI.GET("/:id/state", w.UpdateThingState)
 		thingsAPI.GET("/:id", w.GetThingByID)
-		thingsAPI.GET("/", w.GetAllThings)
+		thingsAPI.GET("", w.GetAllThings)
 	}
 
 }

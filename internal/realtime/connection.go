@@ -1,7 +1,6 @@
 package realtime
 
 import (
-	"net/http"
 	"sync"
 	"time"
 
@@ -200,14 +199,4 @@ func (c *Connection) handleIncomingMessage(message []byte) {
 	c.logger.Debugw("Received message from client",
 		"connectionId", c.ID,
 		"message", string(message))
-}
-
-// WebSocketUpgrader configures the WebSocket upgrader
-var WebSocketUpgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// For now, allow all origins - in production, implement proper origin checking
-		return true
-	},
 }

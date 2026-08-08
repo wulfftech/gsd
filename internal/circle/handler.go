@@ -129,6 +129,12 @@ func (h *Handler) JoinCircle(c *gin.Context) {
 	}
 
 	circle, err := h.circleRepo.GetCircleByInviteCode(c, requestedCircleID)
+	if err != nil {
+		c.JSON(404, gin.H{
+			"error": "Invalid invite code",
+		})
+		return
+	}
 
 	if circle.ID == currentUser.CircleID {
 		c.JSON(409, gin.H{

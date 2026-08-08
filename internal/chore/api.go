@@ -53,6 +53,36 @@ func (h *API) GetAllChores(c *gin.Context) {
 	c.JSON(200, chores)
 }
 
+// GetChore returns a single chore by ID, scoped to the caller's circle. Reuses
+// the same choreRepo.GetChore(id, userID, circleID) call the rest of this file
+// already uses — that query filters on chores.circle_id = ? at the SQL level, so
+// a chore belonging to a different circle simply doesn't match and GORM returns
+// gorm.ErrRecordNotFound, which we surface as a plain 404 (not "chore exists but
+// isn't yours") to avoid leaking cross-circle existence.
+//
+// Response shape is intentionally unwrapped (the bare chore object), matching
+// GetAllChores above (c.JSON(200, chores) — a raw array of the same objects),
+// so a client that filters the eapi list client-side today gets an identical
+// single object from this endpoint.
+func (h *API) GetChore(c *gin.Context) {
+	log := logging.FromContext(c)
+	choreIDRaw := c.Param("id")
+	choreID, err := strconv.Atoi(choreIDRaw)
+	if err != nil {
+		log.Debugw("chore.api.GetChore failed to parse chore ID", "error", err)
+		c.JSON(400, gin.H{"error": "Invalid chore ID"})
+		return
+	}
+
+	user := auth.MustCurrentUser(c)
+	chore, err := h.choreRepo.GetChore(c, choreID, user.ID, user.CircleID)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Chore not found"})
+		return
+	}
+	c.JSON(200, chore)
+}
+
 func (h *API) CreateChore(c *gin.Context) {
 	log := logging.FromContext(c)
 	var choreRequest chModel.ChoreLiteReq
@@ -265,10 +295,6 @@ func (h *API) CompleteChore(c *gin.Context) {
 
 	currentUser := auth.MustCurrentUser(c)
 	performer := currentUser.ID
-	if completedBy != 0 {
-		log.Debugw("chore.api.CompleteChore completedBy is set", "completedBy", completedBy)
-		performer = completedBy
-	}
 	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
 	if err != nil {
 		log.Errorw("chore.api.CompleteChore failed to get chore", "error", err)
@@ -287,6 +313,19 @@ func (h *API) CompleteChore(c *gin.Context) {
 		})
 		return
 	}
+
+	if completedBy != 0 && completedBy != currentUser.ID {
+		if !currentUser.IsAdminOrManager(circleUsers) {
+			log.Debugw("chore.api.CompleteChore unauthorized completedBy attempt", "userID", currentUser.ID, "completedBy", completedBy)
+			c.JSON(403, gin.H{
+				"error": "Only admins/managers can complete a chore on behalf of another member",
+			})
+			return
+		}
+		log.Debugw("chore.api.CompleteChore completedBy is set", "completedBy", completedBy)
+		performer = completedBy
+	}
+
 	if !chore.CanComplete(performer, circleUsers) {
 		log.Debugw("chore.api.CompleteChore user is not assigned to chore", "userID", performer, "choreID", choreID)
 		c.JSON(400, gin.H{
@@ -296,14 +335,40 @@ func (h *API) CompleteChore(c *gin.Context) {
 	}
 
 	// confirm that the chore in completion window:
-	if chore.CompletionWindow != nil {
-		if completedDate.Before(chore.NextDueDate.Add(time.Hour * time.Duration(*chore.CompletionWindow))) {
-			log.Debugw("chore.api.CompleteChore chore is in completion window", "choreID", choreID, "completionWindow", chore.CompletionWindow)
+	if chore.CompletionWindow != nil && chore.NextDueDate != nil {
+		if completedDate.UTC().Before(chore.NextDueDate.UTC().Add(-time.Hour * time.Duration(*chore.CompletionWindow))) {
+			log.Debugw("chore.api.CompleteChore chore is out of completion window", "choreID", choreID, "completionWindow", chore.CompletionWindow)
 			c.JSON(400, gin.H{
 				"error": "Chore is out of completion window",
 			})
 			return
 		}
+	}
+
+	// Check if chore requires approval
+	if chore.RequireApproval {
+		// Set chore status to pending approval instead of completing
+		if err := h.choreRepo.SetChorePendingApproval(c, chore, nil, performer, &completedDate); err != nil {
+			log.Errorw("chore.api.CompleteChore failed to set chore pending approval", "error", err)
+			c.JSON(500, gin.H{
+				"error": "Error setting chore pending approval",
+			})
+			return
+		}
+
+		updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": "Error getting chore",
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"res":     updatedChore,
+			"message": "Chore completion submitted for approval",
+		})
+		return
 	}
 
 	var nextDueDate *time.Time
@@ -359,7 +424,9 @@ func (h *API) CompleteChore(c *gin.Context) {
 		return
 	}
 	if chore.SubTasks != nil && chore.FrequencyType != chModel.FrequencyTypeOnce {
-		h.stRepo.ResetSubtasksCompletion(c, chore.ID)
+		if err := h.stRepo.ResetSubtasksCompletion(c, chore.ID); err != nil {
+			log.Errorw("chore.api.CompleteChore failed to reset subtasks completion", "error", err, "choreID", chore.ID)
+		}
 	}
 
 	updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
@@ -388,11 +455,6 @@ func (h *API) SkipChore(c *gin.Context) {
 
 	currentUser := auth.MustCurrentUser(c)
 	performer := currentUser.ID
-	if completedByRaw := c.Query("completedBy"); completedByRaw != "" {
-		if completedBy, errParse := strconv.Atoi(completedByRaw); errParse == nil && completedBy != 0 {
-			performer = completedBy
-		}
-	}
 
 	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
 	if err != nil {
@@ -408,6 +470,18 @@ func (h *API) SkipChore(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to retrieve circle users"})
 		return
 	}
+
+	if completedByRaw := c.Query("completedBy"); completedByRaw != "" {
+		if completedBy, errParse := strconv.Atoi(completedByRaw); errParse == nil && completedBy != 0 && completedBy != currentUser.ID {
+			if !currentUser.IsAdminOrManager(circleUsers) {
+				log.Debugw("chore.api.SkipChore unauthorized completedBy attempt", "userID", currentUser.ID, "completedBy", completedBy)
+				c.JSON(403, gin.H{"error": "Only admins/managers can skip a chore on behalf of another member"})
+				return
+			}
+			performer = completedBy
+		}
+	}
+
 	if !chore.CanComplete(performer, circleUsers) {
 		log.Debugw("chore.api.SkipChore user is not assigned to chore", "userID", performer, "choreID", choreID)
 		c.JSON(400, gin.H{"error": "User is not assigned to chore"})
@@ -523,7 +597,9 @@ func (h *API) ApproveChore(c *gin.Context) {
 		return
 	}
 	if updatedChore.SubTasks != nil && updatedChore.FrequencyType != chModel.FrequencyTypeOnce {
-		h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID)
+		if err := h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID); err != nil {
+			log.Errorw("chore.api.ApproveChore failed to reset subtasks completion", "error", err, "choreID", updatedChore.ID)
+		}
 	}
 	h.nPlanner.GenerateNotifications(c, updatedChore)
 	h.eventProducer.ChoreCompleted(c, currentUser.WebhookURL, chore, &currentUser.User)
@@ -629,6 +705,7 @@ func APIs(cfg *config.Config, api *API, r *gin.Engine, auth *jwt.GinJWTMiddlewar
 	)
 	{
 		tasksAPI.GET("", api.GetAllChores)
+		tasksAPI.GET("/:id", api.GetChore)
 		tasksAPI.POST("", api.CreateChore)
 		tasksAPI.DELETE("/:id", api.DeleteChore)
 	}

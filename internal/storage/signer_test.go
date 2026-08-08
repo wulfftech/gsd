@@ -76,3 +76,52 @@ func TestSignReturnsValidURL(t *testing.T) {
 	}
 
 }
+
+// Tests for URLSignerS3 IsValid method
+
+func TestS3SignerIsValidWithValidSignature(t *testing.T) {
+	cfg := &config.Config{
+		Jwt: config.JwtConfig{
+			Secret: "test-secret",
+		},
+	}
+	signer := NewURLSignerS3(&S3Storage{}, cfg)
+
+	rawPath := "/assets/chore/1/3f67e1d0-4a88-48ea-a815-21533f0a823a.png"
+	sig := signer.sign(rawPath)
+
+	if !signer.IsValid(rawPath, sig) {
+		t.Error("IsValid returned false for a valid signature")
+	}
+}
+
+func TestS3SignerIsValidWithInvalidSignature(t *testing.T) {
+	cfg := &config.Config{
+		Jwt: config.JwtConfig{
+			Secret: "test-secret",
+		},
+	}
+	signer := NewURLSignerS3(&S3Storage{}, cfg)
+
+	rawPath := "/assets/chore/1/3f67e1d0-4a88-48ea-a815-21533f0a823a.png"
+
+	if signer.IsValid(rawPath, "invalid-signature") {
+		t.Error("IsValid returned true for an invalid signature")
+	}
+}
+
+func TestS3SignerIsValidRejectsDifferentPaths(t *testing.T) {
+	cfg := &config.Config{
+		Jwt: config.JwtConfig{
+			Secret: "test-secret",
+		},
+	}
+	signer := NewURLSignerS3(&S3Storage{}, cfg)
+
+	path1 := "/assets/file1.png"
+	sig1 := signer.sign(path1)
+
+	if signer.IsValid("/assets/file2.png", sig1) {
+		t.Error("IsValid returned true for signature from a different path")
+	}
+}

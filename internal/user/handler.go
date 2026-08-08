@@ -1029,7 +1029,19 @@ func (h *Handler) GetAllUserToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"res": tokens})
+	// Mask token values: show only last 4 characters
+	maskedTokens := make([]*uModel.APIToken, len(tokens))
+	for i, token := range tokens {
+		maskedToken := *token
+		if len(token.Token) > 4 {
+			maskedToken.Token = "****" + token.Token[len(token.Token)-4:]
+		} else {
+			maskedToken.Token = "****"
+		}
+		maskedTokens[i] = &maskedToken
+	}
+
+	c.JSON(http.StatusOK, gin.H{"res": maskedTokens})
 
 }
 

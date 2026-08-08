@@ -66,21 +66,17 @@ func (r *RewardRepository) DeleteReward(ctx context.Context, circleID int, rewar
 func (r *RewardRepository) RedeemReward(ctx context.Context, circleID int, userID int, reward *rModel.Reward) error {
 	logger := logging.FromContext(ctx)
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Read current balance inside the transaction to avoid race conditions
-		var uc cModel.UserCircle
-		if err := tx.Where("user_id = ? AND circle_id = ?", userID, circleID).First(&uc).Error; err != nil {
-			return err
+		// Atomically deduct points from balance only if sufficient points exist
+		// This prevents double-spend race conditions under READ COMMITTED isolation
+		res := tx.Model(&cModel.UserCircle{}).
+			Where("user_id = ? AND circle_id = ? AND points >= ?", userID, circleID, reward.Points).
+			Update("points", gorm.Expr("points - ?", reward.Points))
+		if res.Error != nil {
+			logger.Error("Error deducting points", res.Error)
+			return res.Error
 		}
-		if uc.Points < reward.Points {
+		if res.RowsAffected == 0 {
 			return errors.New("insufficient points")
-		}
-
-		// Deduct points from balance
-		if err := tx.Model(&cModel.UserCircle{}).
-			Where("user_id = ? AND circle_id = ?", userID, circleID).
-			Update("points", gorm.Expr("points - ?", reward.Points)).Error; err != nil {
-			logger.Error("Error deducting points", err)
-			return err
 		}
 
 		// Record the redemption
