@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gsd-ui-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--prefix", "ui", "--", "--host", "--port", "4173"],
+      "port": 4173
+    }
+  ]
+}

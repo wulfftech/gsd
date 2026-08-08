@@ -50,6 +50,7 @@ const NavBar = () => {
   const { data: resource } = useResource()
 
   const navigate = useNavigate()
+  const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   // Pending-approval alert for admins — only query when authenticated
@@ -131,7 +132,6 @@ const NavBar = () => {
     () => setDrawerOpen(true),
     () => setDrawerOpen(false),
   ]
-  const location = useLocation()
   const [searchParams] = useSearchParams()
   useEffect(() => {
     SafeArea.getSafeAreaInsets().then(data => {
