@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -61,6 +63,57 @@ import (
 	"donetick.com/core/internal/reward"
 	rRepo "donetick.com/core/internal/reward/repo"
 )
+
+var (
+	Version   = "dev"
+	Commit    = "dev"
+	BuildDate = "dev"
+)
+
+func backupSQLiteDatabase(cfg *config.Config) error {
+	// Determine the SQLite database path
+	dbPath := os.Getenv("DT_SQLITE_PATH")
+	if dbPath == "" {
+		dbPath = "donetick.db"
+	}
+
+	// Check if database file exists
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		// Database doesn't exist yet, nothing to backup
+		return nil
+	}
+
+	// Create backup filename with timestamp
+	timestamp := time.Now().Format("20060102-150405")
+	backupPath := fmt.Sprintf("%s.bak-%s", dbPath, timestamp)
+
+	// Open source file
+	srcFile, err := os.Open(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open source database: %w", err)
+	}
+	defer srcFile.Close()
+
+	// Create backup file
+	backupFile, err := os.Create(backupPath)
+	if err != nil {
+		return fmt.Errorf("failed to create backup file: %w", err)
+	}
+	defer backupFile.Close()
+
+	// Copy the database file to backup
+	if _, err := io.Copy(backupFile, srcFile); err != nil {
+		return fmt.Errorf("failed to copy database to backup: %w", err)
+	}
+
+	// Ensure backup is written to disk
+	if err := backupFile.Sync(); err != nil {
+		return fmt.Errorf("failed to sync backup file: %w", err)
+	}
+
+	logging.DefaultLogger().Infof("SQLite database backed up to: %s", backupPath)
+	return nil
+}
 
 func main() {
 	// Load configuration first
@@ -147,6 +200,7 @@ func main() {
 		// Projects:
 		fx.Provide(pjRepo.NewProjectRepository),
 		fx.Provide(project.NewHandler),
+		fx.Provide(project.NewAPI),
 
 		// Filters:
 		fx.Provide(fRepo.NewFilterRepository),
@@ -202,6 +256,7 @@ func main() {
 			thing.APIs,
 			label.Routes,
 			project.Routes,
+			project.APIs,
 			filter.Routes,
 			reward.Routes,
 			reward.APIs,
@@ -237,6 +292,7 @@ func newServer(lc fx.Lifecycle, cfg *config.Config, db *gorm.DB, notifier *notif
 	// log when http request is made:
 
 	r := gin.New()
+	r.Use(gin.Recovery())
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
@@ -277,6 +333,14 @@ func newServer(lc fx.Lifecycle, cfg *config.Config, db *gorm.DB, notifier *notif
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if cfg.Database.Migration {
+				// Backup SQLite database before migrations
+				if cfg.Database.Type == "sqlite" {
+					if err := backupSQLiteDatabase(cfg); err != nil {
+						logging.DefaultLogger().Warnf("failed to backup SQLite database: %v", err)
+						// Don't block startup on backup failure
+					}
+				}
+
 				database.Migration(db)
 				migrations.Run(context.Background(), db)
 				err := database.MigrationScripts(db, cfg)

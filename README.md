@@ -48,7 +48,15 @@ Then open **http://localhost:2021** in your browser.
 
 ### Configuration
 
-Copy `config/selfhosted.yaml` and adjust as needed. Key environment variables:
+Copy `config/selfhosted.yaml` and adjust as needed. **Important:** the shipped `jwt.secret` value (`"change_this_to_a_secure_random_string_32_characters_long"`) is a placeholder and must be replaced with a real random value before first start. Without this change, the container will crash on startup. Generate a secure secret with:
+
+```bash
+openssl rand -base64 32
+```
+
+Then paste the output into `config/selfhosted.yaml`'s `jwt.secret` field.
+
+Key environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|

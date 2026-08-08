@@ -74,6 +74,28 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 			path = "donetick.db"
 		}
 		db, err = gorm.Open(sqlite.Open(path), &gormConfig)
+		if err == nil {
+			// Configure SQLite for concurrent write handling
+			sqlDB, dbErr := db.DB()
+			if dbErr != nil {
+				return nil, fmt.Errorf("failed to get underlying SQL DB: %w", dbErr)
+			}
+
+			// Enable WAL mode for better concurrency support
+			if _, err := sqlDB.Exec("PRAGMA journal_mode=WAL;"); err != nil {
+				logging.DefaultLogger().Warnf("failed to enable WAL mode: %v", err)
+			}
+
+			// Set busy timeout to 5 seconds to handle concurrent writers gracefully
+			if _, err := sqlDB.Exec("PRAGMA busy_timeout=5000;"); err != nil {
+				logging.DefaultLogger().Warnf("failed to set busy timeout: %v", err)
+			}
+
+			// Set reasonable connection pool limits for SQLite
+			// SQLite serializes writes, so keeping max open conns low is sufficient
+			sqlDB.SetMaxOpenConns(1)
+			sqlDB.SetMaxIdleConns(1)
+		}
 
 	}
 
