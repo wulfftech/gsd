@@ -53,6 +53,7 @@ const ChildUserSettings = () => {
       })
       refetch()
       queryClient.invalidateQueries(['managedUsers'])
+      queryClient.invalidateQueries(['allCircleMembers'])
     } else {
       const err = await response.json()
       throw new Error(err.error || 'Failed to create account')
@@ -70,6 +71,7 @@ const ChildUserSettings = () => {
       showNotification({ type: 'success', message: 'Account updated' })
       refetch()
       queryClient.invalidateQueries(['managedUsers'])
+      queryClient.invalidateQueries(['allCircleMembers'])
     } else {
       const err = await response.json()
       throw new Error(err.error || 'Failed to update account')
@@ -91,6 +93,7 @@ const ChildUserSettings = () => {
             })
             refetch()
             queryClient.invalidateQueries(['managedUsers'])
+            queryClient.invalidateQueries(['allCircleMembers'])
           } else {
             const err = await response.json()
             throw new Error(err.error || 'Failed to delete account')

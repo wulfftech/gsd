@@ -381,7 +381,7 @@ const DashboardView = () => {
     })
   })
 
-  const availablePoints = m => Math.max(0, (m.points || 0) - (m.pointsRedeemed || 0))
+  const availablePoints = m => Math.max(0, m.points || 0)
 
   const isLoading = choresLoading || projectsLoading
 

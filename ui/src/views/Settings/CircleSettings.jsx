@@ -329,15 +329,18 @@ const CircleSettings = () => {
                                   type: 'success',
                                   message: 'Removed member successfully',
                                 })
-                                queryClient.invalidateQueries(['circleMembers'])
-                                queryClient.invalidateQueries(['userCircle'])
-                                queryClient.refetchQueries(['circleMembers'])
-                                queryClient.refetchQueries(['userCircle'])
+                                queryClient.invalidateQueries(['allCircleMembers'])
+                                queryClient.refetchQueries(['allCircleMembers'])
                                 setCircleMembers(prevMembers =>
                                   prevMembers.filter(
                                     m => m.userId !== member.userId,
                                   ),
                                 )
+                              } else {
+                                showNotification({
+                                  type: 'error',
+                                  message: 'Failed to remove member',
+                                })
                               }
                             })
                           },
@@ -403,12 +406,10 @@ const CircleSettings = () => {
                           type: 'success',
                           message: 'Accepted request successfully',
                         })
-                        queryClient.invalidateQueries(['circleMembers'])
+                        queryClient.invalidateQueries(['allCircleMembers'])
                         queryClient.invalidateQueries(['circleMemberRequests'])
-                        queryClient.invalidateQueries(['userCircle'])
-                        queryClient.refetchQueries(['circleMembers'])
+                        queryClient.refetchQueries(['allCircleMembers'])
                         queryClient.refetchQueries(['circleMemberRequests'])
-                        queryClient.refetchQueries(['userCircle'])
                         refreshMemberRequests()
                         GetAllCircleMembers().then(data => {
                           setCircleMembers(data.res ? data.res : [])

@@ -9,6 +9,15 @@ import {
   UpdateReward,
 } from '../../utils/Fetcher'
 
+const parseError = async resp => {
+  try {
+    const data = await resp.json()
+    return new Error(data.error || 'Request failed')
+  } catch {
+    return new Error(`Request failed (${resp.status})`)
+  }
+}
+
 export const useRewards = () => {
   return useQuery({
     queryKey: ['rewards'],
@@ -26,7 +35,11 @@ export const useRedemptions = () => {
 export const useCreateReward = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: reward => CreateReward(reward).then(r => r.json()),
+    mutationFn: async reward => {
+      const resp = await CreateReward(reward)
+      if (!resp.ok) throw await parseError(resp)
+      return resp.json()
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rewards'] }),
   })
 }
@@ -34,8 +47,11 @@ export const useCreateReward = () => {
 export const useUpdateReward = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...reward }) =>
-      UpdateReward(id, reward).then(r => r.json()),
+    mutationFn: async ({ id, ...reward }) => {
+      const resp = await UpdateReward(id, reward)
+      if (!resp.ok) throw await parseError(resp)
+      return resp.json()
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rewards'] }),
   })
 }
@@ -43,7 +59,11 @@ export const useUpdateReward = () => {
 export const useDeleteReward = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: id => DeleteReward(id),
+    mutationFn: async id => {
+      const resp = await DeleteReward(id)
+      if (!resp.ok) throw await parseError(resp)
+      return id
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rewards'] }),
   })
 }
@@ -51,7 +71,11 @@ export const useDeleteReward = () => {
 export const useRedeemReward = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: id => RedeemReward(id),
+    mutationFn: async id => {
+      const resp = await RedeemReward(id)
+      if (!resp.ok) throw await parseError(resp)
+      return id
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rewards'] })
       queryClient.invalidateQueries({ queryKey: ['allCircleMembers'] })
@@ -63,7 +87,11 @@ export const useRedeemReward = () => {
 export const useFulfillRedemption = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: id => FulfillRedemption(id),
+    mutationFn: async id => {
+      const resp = await FulfillRedemption(id)
+      if (!resp.ok) throw await parseError(resp)
+      return id
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['rewardRedemptions'] }),
   })

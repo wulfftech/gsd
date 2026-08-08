@@ -95,7 +95,11 @@ export const useApproveTask = () => {
       if (!resp.ok) throw await parseError(resp)
       return resp.json()
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PROJECTS_KEY }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROJECTS_KEY })
+      queryClient.invalidateQueries({ queryKey: ['allCircleMembers'] })
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] })
+    },
   })
 }
 

@@ -87,6 +87,12 @@ function RewardModal({ config }) {
           {errors.points && <FormHelperText>{errors.points}</FormHelperText>}
         </FormControl>
 
+        {config?.error && (
+          <Typography color='danger' level='body-sm'>
+            {config.error}
+          </Typography>
+        )}
+
         <Divider />
 
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>

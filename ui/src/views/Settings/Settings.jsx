@@ -447,16 +447,19 @@ const Settings = () => {
                                   message: 'Removed member successfully',
                                 })
                                 // Invalidate and refetch circle-related queries
-                                queryClient.invalidateQueries(['circleMembers'])
-                                queryClient.invalidateQueries(['userCircle'])
-                                queryClient.refetchQueries(['circleMembers'])
-                                queryClient.refetchQueries(['userCircle'])
+                                queryClient.invalidateQueries(['allCircleMembers'])
+                                queryClient.refetchQueries(['allCircleMembers'])
                                 // Update local state immediately
                                 setCircleMembers(prevMembers =>
                                   prevMembers.filter(
                                     m => m.userId !== member.userId,
                                   ),
                                 )
+                              } else {
+                                showNotification({
+                                  type: 'error',
+                                  message: 'Failed to remove member',
+                                })
                               }
                             })
                           },
@@ -523,12 +526,10 @@ const Settings = () => {
                           message: 'Accepted request successfully',
                         })
                         // Invalidate and refetch circle-related queries
-                        queryClient.invalidateQueries(['circleMembers'])
+                        queryClient.invalidateQueries(['allCircleMembers'])
                         queryClient.invalidateQueries(['circleMemberRequests'])
-                        queryClient.invalidateQueries(['userCircle'])
-                        queryClient.refetchQueries(['circleMembers'])
+                        queryClient.refetchQueries(['allCircleMembers'])
                         queryClient.refetchQueries(['circleMemberRequests'])
-                        queryClient.refetchQueries(['userCircle'])
                         // Refresh local state
                         refreshMemberRequests()
                         GetAllCircleMembers().then(data => {

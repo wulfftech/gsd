@@ -132,8 +132,27 @@ const JoinCircleView = () => {
               </Button>
             </>
           )}
-          {!code ||
-            (!userProfile && (
+          {!code ? (
+            <>
+              <Typography level='body-md' alignSelf={'center'}>
+                No invite code provided
+              </Typography>
+              <Typography level='body-md' alignSelf={'center'} sx={{ mb: 9 }}>
+                Please check your invite link and try again
+              </Typography>
+              <Button
+                fullWidth
+                size='lg'
+                sx={{ mt: 3, mb: 2 }}
+                onClick={() => {
+                  navigate('/chores')
+                }}
+              >
+                Back to Chores
+              </Button>
+            </>
+          ) : (
+            !userProfile && (
               <>
                 <Typography level='body-md' alignSelf={'center'}>
                   You need to be logged in to join a circle
@@ -152,7 +171,8 @@ const JoinCircleView = () => {
                   Login
                 </Button>
               </>
-            ))}
+            )
+          )}
         </Sheet>
       </Box>
       <AcknowledgmentModal config={ackModalConfig} />

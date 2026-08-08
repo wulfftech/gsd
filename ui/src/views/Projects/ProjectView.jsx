@@ -199,7 +199,17 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
   const isOverdue =
     !isCompleted &&
     project.dueDate &&
-    new Date(project.dueDate) < new Date()
+    (() => {
+      const dueDate = new Date(project.dueDate)
+      // Compare local calendar dates: overdue if today's local date is after the due date
+      // Create a Date for local midnight of the day after the due date
+      const endOfDueDay = new Date(
+        dueDate.getUTCFullYear(),
+        dueDate.getUTCMonth(),
+        dueDate.getUTCDate() + 1,
+      )
+      return new Date() >= endOfDueDay
+    })()
 
   return (
     <Box
@@ -306,6 +316,7 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
                 size='sm'
                 variant='plain'
                 color='neutral'
+                aria-label={`Edit project ${project.name}`}
                 onClick={e => {
                   e.stopPropagation()
                   onEdit(project)
@@ -317,6 +328,7 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
                 size='sm'
                 variant='plain'
                 color='danger'
+                aria-label={`Delete project ${project.name}`}
                 onClick={e => {
                   e.stopPropagation()
                   onDelete(project)

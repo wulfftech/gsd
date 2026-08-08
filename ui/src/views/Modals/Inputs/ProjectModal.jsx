@@ -28,6 +28,11 @@ import {
 } from '../../Projects/ProjectQueries'
 import IconPickerModal from './IconPickerModal'
 
+// Task status constants
+const TASK_PENDING = 0
+const TASK_PENDING_APPROVAL = 1
+const TASK_COMPLETED = 2
+
 const ProjectModal = ({ isOpen, onClose, onSave, project }) => {
   const { ResponsiveModal } = useResponsiveModal()
 
@@ -69,6 +74,8 @@ const ProjectModal = ({ isOpen, onClose, onSave, project }) => {
           name: t.name,
           description: t.description || '',
           order: t.order,
+          status: t.status ?? TASK_PENDING,
+          completedBy: t.completedBy || null,
         })),
       )
     } else {
@@ -120,6 +127,8 @@ const ProjectModal = ({ isOpen, onClose, onSave, project }) => {
         name: t.name,
         description: t.description || null,
         order: i,
+        status: t.status ?? TASK_PENDING,
+        completedBy: t.completedBy || null,
       })),
     }
 
@@ -353,12 +362,31 @@ const ProjectModal = ({ isOpen, onClose, onSave, project }) => {
                   <Typography level='body-sm' sx={{ flex: 1 }}>
                     {t.name}
                   </Typography>
-                  {/* Only show delete for tasks that aren't already approved/in-progress */}
+                  {/* Task status chip */}
+                  <Chip
+                    size='sm'
+                    variant='soft'
+                    color={
+                      t.status === TASK_COMPLETED
+                        ? 'success'
+                        : t.status === TASK_PENDING_APPROVAL
+                          ? 'warning'
+                          : 'neutral'
+                    }
+                  >
+                    {t.status === TASK_COMPLETED
+                      ? 'Completed'
+                      : t.status === TASK_PENDING_APPROVAL
+                        ? 'Pending Approval'
+                        : 'Pending'}
+                  </Chip>
+                  {/* Only show delete for pending tasks */}
                   <IconButton
                     size='sm'
                     variant='plain'
                     color='danger'
                     onClick={() => handleRemoveTask(idx)}
+                    disabled={t.status !== TASK_PENDING}
                   >
                     <DeleteOutlineIcon sx={{ fontSize: 18 }} />
                   </IconButton>

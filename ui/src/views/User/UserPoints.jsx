@@ -238,7 +238,7 @@ const UserPoints = () => {
         displayName: user.displayName,
         image: user.image,
         totalPoints: user.points || 0,
-        availablePoints: (user.points || 0) - (user.pointsRedeemed || 0),
+        availablePoints: user.points || 0,
         periodPoints: 0,
         periodTasks: 0,
       }
@@ -688,7 +688,7 @@ const UserPoints = () => {
                       variant='soft'
                       startDecorator={<Toll />}
                     >
-                      {user.points - user.pointsRedeemed}
+                      {user.points}
                     </Chip>
                   </Option>
                 ))}
@@ -794,8 +794,10 @@ const UserPoints = () => {
             user => user.userId === selectedUser,
           )
           const totalPoints = selectedUserData?.points || 0
+          // points_redeemed is a frozen historical counter as of the ledger-retirement
+          // migration (20260808b) — points alone is now the live spendable balance.
           const redeemedPoints = selectedUserData?.pointsRedeemed || 0
-          const availablePoints = totalPoints - redeemedPoints
+          const availablePoints = totalPoints
 
           const periodStats = leaderboardData.find(
             user => user.userId === selectedUser,
@@ -956,9 +958,7 @@ const UserPoints = () => {
       <RewardsPickerModal
         config={(() => {
           const user = circleUsers.find(u => u.userId === userProfile.id)
-          const availablePoints = user
-            ? (user.points || 0) - (user.pointsRedeemed || 0)
-            : 0
+          const availablePoints = user ? user.points || 0 : 0
           return {
             isOpen: isRedeemModalOpen,
             onClose: () => setIsRedeemModalOpen(false),
@@ -971,9 +971,7 @@ const UserPoints = () => {
       <DepositPointsModal
         config={(() => {
           const user = circleUsers.find(u => u.userId === selectedUser)
-          const availablePoints = user
-            ? (user.points || 0) - (user.pointsRedeemed || 0)
-            : 0
+          const availablePoints = user ? user.points || 0 : 0
 
           return {
             onClose: () => {

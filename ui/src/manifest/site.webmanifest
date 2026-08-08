@@ -1,6 +1,6 @@
 {
-  "name": "Donetick: Simplify Tasks & Chores, Together.",
-  "short_name": "Donetick",
+  "name": "GSD: Gettin' Shit Done",
+  "short_name": "GSD",
   "description": "An open-source, user-friendly app for managing tasks and chores, featuring customizable options to help you and others stay organized",
   "start_url": "/index.html",
   "scope": "/",

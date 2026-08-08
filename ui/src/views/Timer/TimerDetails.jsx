@@ -943,7 +943,7 @@ const TimerDetails = () => {
 
                           return (
                             <SwipeableListItem
-                              key={pauseIndex}
+                              key={pause.start}
                               swipeActionOpen={
                                 showMoreInfoId === pauseIndex
                                   ? 'trailing'
@@ -1206,7 +1206,7 @@ const TimerDetails = () => {
                     {editingSessions[timerData.id].pauseLog.map(
                       (pause, pauseIndex) => (
                         <Card
-                          key={pauseIndex}
+                          key={pause.start}
                           variant='soft'
                           sx={{ mb: 2, p: 2 }}
                         >

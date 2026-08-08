@@ -6,6 +6,7 @@ import {
   GetManagedUsers,
   GetUserProfile,
 } from '../utils/Fetcher'
+import { apiClient } from '../utils/ApiClient'
 
 // Helper to check if we have a valid token
 const isTokenValid = () => {
@@ -47,9 +48,23 @@ export const useUserProfile = () => {
     queryKey: ['userProfile'],
     queryFn: async () => {
       const resp = await GetUserProfile()
-      const result = await resp.json()
-      // if we got 403 then user probably deleted their account and token is still valid. navigate to login
 
+      // Guard against null response from ApiClient (can occur during refresh cooldown
+      // or refresh failure, in which case handleLogout() was already called internally)
+      if (!resp) {
+        return null
+      }
+
+      // Check response status before parsing
+      if (!resp.ok) {
+        // if we got 401 or 403 then logout (403 means account deleted, 401 means token invalid)
+        if (resp.status === 401 || resp.status === 403) {
+          apiClient.handleLogout()
+        }
+        return null
+      }
+
+      const result = await resp.json()
       return result.res || null
     },
     staleTime: 30 * 60 * 1000, // 30 minutes in milliseconds

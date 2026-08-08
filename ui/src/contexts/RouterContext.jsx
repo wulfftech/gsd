@@ -39,7 +39,6 @@ import ProfileSettings from '../views/Settings/ProfileSettings'
 import SidepanelSettings from '../views/Settings/SidepanelSettings'
 import StorageSettings from '../views/Settings/StorageSettings'
 import TermsView from '../views/Terms/TermsView'
-import TestView from '../views/TestView/Test'
 import ThingsHistory from '../views/Things/ThingsHistory'
 import ThingsView from '../views/Things/ThingsView'
 import TimerDetails from '../views/Timer/TimerDetails'
@@ -192,10 +191,6 @@ const Router = createBrowserRouter([
       {
         path: '/welcome',
         element: <Landing />,
-      },
-      {
-        path: '/test',
-        element: <TestView />,
       },
       {
         path: '/forgot-password',

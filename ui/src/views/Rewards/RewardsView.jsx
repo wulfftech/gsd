@@ -26,6 +26,7 @@ import { useState } from 'react'
 
 import { useUserProfile } from '../../queries/UserQueries.jsx'
 import { useCircleMembers } from '../../queries/UserQueries.jsx'
+import { useNotification } from '../../service/NotificationProvider'
 import ConfirmationModal from '../Modals/Inputs/ConfirmationModal.jsx'
 import RewardModal from '../Modals/Inputs/RewardModal.jsx'
 import {
@@ -41,9 +42,11 @@ import {
 const RewardsView = () => {
   const [tab, setTab] = useState(0)
   const [rewardModalConfig, setRewardModalConfig] = useState(null)
+  const [rewardModalError, setRewardModalError] = useState('')
   const [deleteConfirmConfig, setDeleteConfirmConfig] = useState(null)
   const [redeemConfirmConfig, setRedeemConfirmConfig] = useState(null)
 
+  const { showError } = useNotification()
   const { data: userProfile } = useUserProfile()
   const { data: circleMembersData } = useCircleMembers()
   const { data: rewards = [], isLoading: rewardsLoading } = useRewards()
@@ -61,18 +64,33 @@ const RewardsView = () => {
     circleUsers.find(u => u.userId === userProfile?.id)?.role === 'admin'
 
   const currentMember = circleUsers.find(u => u.userId === userProfile?.id)
-  const availablePoints = currentMember
-    ? (currentMember.points || 0) - (currentMember.pointsRedeemed || 0)
-    : 0
+  const availablePoints = currentMember ? currentMember.points || 0 : 0
 
   const handleSaveReward = data => {
+    setRewardModalError('')
     if (data.id) {
       updateReward.mutate(data, {
-        onSuccess: () => setRewardModalConfig(null),
+        onSuccess: () => {
+          setRewardModalConfig(null)
+          setRewardModalError('')
+        },
+        onError: err => {
+          const errMsg = err.message || 'Failed to update reward'
+          setRewardModalError(errMsg)
+          showError(errMsg)
+        },
       })
     } else {
       createReward.mutate(data, {
-        onSuccess: () => setRewardModalConfig(null),
+        onSuccess: () => {
+          setRewardModalConfig(null)
+          setRewardModalError('')
+        },
+        onError: err => {
+          const errMsg = err.message || 'Failed to create reward'
+          setRewardModalError(errMsg)
+          showError(errMsg)
+        },
       })
     }
   }
@@ -86,7 +104,11 @@ const RewardsView = () => {
       cancelText: 'Cancel',
       color: 'danger',
       onClose: confirmed => {
-        if (confirmed) deleteReward.mutate(reward.id)
+        if (confirmed) {
+          deleteReward.mutate(reward.id, {
+            onError: err => showError(err.message || 'Failed to delete reward'),
+          })
+        }
         setDeleteConfirmConfig(null)
       },
     })
@@ -102,7 +124,11 @@ const RewardsView = () => {
       cancelText: 'Cancel',
       color: 'primary',
       onClose: confirmed => {
-        if (confirmed) redeemReward.mutate(reward.id)
+        if (confirmed) {
+          redeemReward.mutate(reward.id, {
+            onError: err => showError(err.message || 'Failed to redeem reward'),
+          })
+        }
         setRedeemConfirmConfig(null)
       },
     })
@@ -287,6 +313,7 @@ const RewardsView = () => {
                       <IconButton
                         size='sm'
                         variant='plain'
+                        aria-label='Edit reward'
                         onClick={() =>
                           setRewardModalConfig({
                             isOpen: true,
@@ -303,6 +330,7 @@ const RewardsView = () => {
                         size='sm'
                         variant='plain'
                         color='danger'
+                        aria-label='Delete reward'
                         onClick={() => handleDeleteReward(reward)}
                       >
                         <Delete />
@@ -368,7 +396,12 @@ const RewardsView = () => {
                         color='success'
                         variant='soft'
                         disabled={fulfillRedemption.isPending}
-                        onClick={() => fulfillRedemption.mutate(r.id)}
+                        onClick={() =>
+                          fulfillRedemption.mutate(r.id, {
+                            onError: err =>
+                              showError(err.message || 'Failed to fulfill redemption'),
+                          })
+                        }
                       >
                         Mark Fulfilled
                       </Button>
@@ -382,7 +415,9 @@ const RewardsView = () => {
       )}
 
       {/* Modals */}
-      {rewardModalConfig && <RewardModal config={rewardModalConfig} />}
+      {rewardModalConfig && (
+        <RewardModal config={{ ...rewardModalConfig, error: rewardModalError }} />
+      )}
 
       {deleteConfirmConfig && (
         <ConfirmationModal config={deleteConfirmConfig} />

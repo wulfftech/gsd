@@ -953,7 +953,7 @@ const UserActivites = () => {
                       variant='soft'
                       startDecorator={<Toll />}
                     >
-                      {user.points - user.pointsRedeemed}
+                      {user.points}
                     </Chip>
                   </Option>
                 ))}
