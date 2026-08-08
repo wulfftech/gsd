@@ -2,7 +2,6 @@ package device
 
 import (
 	"net/http"
-	"strconv"
 
 	auth "donetick.com/core/internal/auth"
 	dRepo "donetick.com/core/internal/device/repo"
@@ -201,35 +200,6 @@ func (h *Handler) GetDeviceCount(c *gin.Context) {
 		"count": count,
 		"limit": dRepo.MaxDevicesPerUser,
 	})
-}
-
-// CleanupInactiveTokens removes tokens that haven't been active for specified days (admin only)
-func (h *Handler) CleanupInactiveTokens(c *gin.Context) {
-	log := logging.FromContext(c)
-	currentUser, ok := auth.CurrentUser(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
-
-	// This could be an admin-only endpoint
-	// For now, allowing any user to trigger cleanup for their own tokens would require additional logic
-
-	daysStr := c.DefaultQuery("days", "30")
-	days, err := strconv.Atoi(daysStr)
-	if err != nil || days < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid days parameter"})
-		return
-	}
-
-	if err := h.deviceRepo.CleanupInactiveTokens(c, days); err != nil {
-		log.Error("Failed to cleanup inactive tokens", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cleanup inactive tokens"})
-		return
-	}
-
-	log.Info("Cleanup completed", "user_id", currentUser.ID, "days", days)
-	c.JSON(http.StatusOK, gin.H{"message": "Cleanup completed successfully"})
 }
 
 // Routes sets up the device token management routes

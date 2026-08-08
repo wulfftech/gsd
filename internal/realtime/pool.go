@@ -17,12 +17,19 @@ type ConnectionPool struct {
 	stats       ConnectionPoolStats
 }
 
-// ConnectionPoolStats tracks metrics for a connection pool
+// ConnectionPoolStats tracks metrics for a connection pool (internal use with mutex)
 type ConnectionPoolStats struct {
 	ActiveConnections int64
 	TotalMessages     int64
 	QueueSize         int64
 	mu                sync.RWMutex
+}
+
+// ConnectionPoolStatsData is a copy-safe DTO for connection pool statistics
+type ConnectionPoolStatsData struct {
+	ActiveConnections int64
+	TotalMessages     int64
+	QueueSize         int64
 }
 
 // NewConnectionPool creates a new connection pool for a circle
@@ -197,7 +204,7 @@ func (p *ConnectionPool) Close() {
 }
 
 // GetStats returns current pool statistics
-func (p *ConnectionPool) GetStats() ConnectionPoolStats {
+func (p *ConnectionPool) GetStats() ConnectionPoolStatsData {
 	p.mu.RLock()
 
 	// Calculate queue size by summing all connection Send channel lengths
@@ -208,7 +215,7 @@ func (p *ConnectionPool) GetStats() ConnectionPoolStats {
 	p.mu.RUnlock()
 
 	p.stats.mu.RLock()
-	stats := ConnectionPoolStats{
+	stats := ConnectionPoolStatsData{
 		ActiveConnections: p.stats.ActiveConnections,
 		TotalMessages:     p.stats.TotalMessages,
 		QueueSize:         queueSize,

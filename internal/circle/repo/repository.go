@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	cModel "donetick.com/core/internal/circle/model"
@@ -161,8 +162,16 @@ func (r *CircleRepository) RedeemPoints(c context.Context, circleID int, userID 
 	logger := logging.FromContext(c)
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 
-		if err := tx.Model(&cModel.UserCircle{}).Where("user_id = ? AND circle_id = ?", userID, circleID).Update("points_redeemed", gorm.Expr("points_redeemed + ?", points)).Error; err != nil {
-			return err
+		// Atomically deduct from the single points balance, same pattern as reward.RedeemReward,
+		// now that points_redeemed is retired as a second ledger (see migration 20260808b).
+		res := tx.Model(&cModel.UserCircle{}).
+			Where("user_id = ? AND circle_id = ? AND points >= ?", userID, circleID, points).
+			Update("points", gorm.Expr("points - ?", points))
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errors.New("insufficient points")
 		}
 		if err := tx.Create(&pModel.PointsHistory{
 			Action:    pModel.PointsHistoryActionRedeem,

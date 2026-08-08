@@ -132,31 +132,6 @@ func (r *LabelRepository) isLabelsOwner(ctx context.Context, userID int, labelID
 	return count == 1
 }
 
-func (r *LabelRepository) DeleteLabels(ctx context.Context, userID int, ids []int) error {
-	// remove all ChoreLabels record for this:
-	if r.isLabelsOwner(ctx, userID, ids) {
-		return errors.New("labels are not owned by user")
-	}
-
-	tx := r.db.WithContext(ctx).Begin()
-
-	if err := tx.Where("label_id IN (?)", ids).Delete(&chModel.ChoreLabels{}).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := tx.Where("id IN (?)", ids).Delete(&lModel.Label{}).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return nil
-}
 
 func (r *LabelRepository) UpdateLabel(ctx context.Context, userID int, label *lModel.Label) error {
 

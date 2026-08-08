@@ -9,6 +9,7 @@ import (
 	config "donetick.com/core/config"
 	chModel "donetick.com/core/internal/chore/model"
 	cModel "donetick.com/core/internal/circle/model"
+	pModel "donetick.com/core/internal/points"
 	storageModel "donetick.com/core/internal/storage/model"
 	stModel "donetick.com/core/internal/subtask/model"
 	"donetick.com/core/logging"
@@ -97,15 +98,11 @@ func (r *ChoreRepository) DeleteChore(c context.Context, id int) error {
 		if err := tx.Delete(&chModel.ChoreHistory{}, "chore_id = ?", id).Error; err != nil {
 			return err
 		}
-		// subtask if exists:
+		// Delete all subtasks associated with the chore
 		if err := tx.Where("chore_id = ?", id).Delete(&stModel.SubTask{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&chModel.Chore{}, id).Error; err != nil {
-			return err
-		}
-		// Delete all subtasks associated with the chore
-		if err := tx.Where("chore_id = ?", id).Delete(&stModel.SubTask{}).Error; err != nil {
 			return err
 		}
 		// Delete all chore storage files associated with the chore:
@@ -216,6 +213,17 @@ func (r *ChoreRepository) ApproveChore(c context.Context, chore *chModel.Chore, 
 			if err := tx.Model(&cModel.UserCircle{}).Where("user_id = ? AND circle_id = ?", history.CompletedBy, chore.CircleID).Update("points", gorm.Expr("points + ?", chore.Points)).Error; err != nil {
 				return err
 			}
+			// Record points history for audit trail
+			if err := tx.Create(&pModel.PointsHistory{
+				Action:    pModel.PointsHistoryActionChore,
+				CircleID:  chore.CircleID,
+				UserID:    history.CompletedBy,
+				Points:    *chore.Points,
+				CreatedAt: time.Now().UTC(),
+				CreatedBy: adminUserID,
+			}).Error; err != nil {
+				return err
+			}
 		}
 
 		// Save the updated history
@@ -313,6 +321,17 @@ func (r *ChoreRepository) CompleteChore(c context.Context, chore *chModel.Chore,
 		if applyPoints && chore.Points != nil && *chore.Points > 0 {
 			ch.Points = chore.Points
 			if err := tx.Model(&cModel.UserCircle{}).Where("user_id = ? AND circle_id = ?", userID, chore.CircleID).Update("points", gorm.Expr("points + ?", chore.Points)).Error; err != nil {
+				return err
+			}
+			// Record points history for audit trail
+			if err := tx.Create(&pModel.PointsHistory{
+				Action:    pModel.PointsHistoryActionChore,
+				CircleID:  chore.CircleID,
+				UserID:    userID,
+				Points:    *chore.Points,
+				CreatedAt: time.Now().UTC(),
+				CreatedBy: userID,
+			}).Error; err != nil {
 				return err
 			}
 		}

@@ -21,7 +21,6 @@ type IDeviceRepository interface {
 	GetActiveDeviceTokens(c context.Context, userID int) ([]*uModel.UserDeviceToken, error)
 	GetActiveDeviceCount(c context.Context, userID int) (int64, error)
 	UpdateDeviceTokenActivity(c context.Context, userID int, deviceID string) error
-	CleanupInactiveTokens(c context.Context, inactiveDays int) error
 }
 
 type DeviceRepository struct {
@@ -181,21 +180,3 @@ func (r *DeviceRepository) GetActiveDeviceCount(c context.Context, userID int) (
 	return count, err
 }
 
-// CleanupInactiveTokens removes tokens that haven't been active for the specified number of days
-func (r *DeviceRepository) CleanupInactiveTokens(c context.Context, inactiveDays int) error {
-	log := logging.FromContext(c)
-
-	cutoffDate := time.Now().UTC().AddDate(0, 0, -inactiveDays)
-
-	result := r.db.WithContext(c).
-		Where("last_active_at < ? OR (last_active_at IS NULL AND created_at < ?)", cutoffDate, cutoffDate).
-		Delete(&uModel.UserDeviceToken{})
-
-	if result.Error != nil {
-		log.Error("Failed to cleanup inactive tokens", "error", result.Error)
-		return result.Error
-	}
-
-	log.Info("Cleaned up inactive device tokens", "count", result.RowsAffected, "cutoff_days", inactiveDays)
-	return nil
-}

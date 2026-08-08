@@ -85,24 +85,26 @@ func ScheduleNextDueDate(ctx context.Context, chore *chModel.Chore, completedDat
 			return nil, fmt.Errorf("days_of_the_week requires at least one day")
 		}
 
+		// Get timezone for calculations - prefer chore timezone, fallback to UTC
+		// This is needed for all week pattern branches (every_week, week_of_month, week_of_quarter)
+		var loc *time.Location
+		var err error
+		if chore.FrequencyMetadataV2.Timezone != "" {
+			loc, err = time.LoadLocation(chore.FrequencyMetadataV2.Timezone)
+			if err != nil {
+				log := logging.FromContext(ctx)
+				log.Error("error loading timezone from frequency metadata", "error", err, "timezone", chore.FrequencyMetadataV2.Timezone, "chore_id", chore.ID)
+				loc = time.UTC // fallback to UTC
+			}
+		} else {
+			loc = time.UTC
+		}
+
 		// Handle different week patterns
 		weekPattern := chore.FrequencyMetadataV2.WeekPattern
 
 		// Default to every_week if no pattern specified
 		if weekPattern == nil || *weekPattern == "" || *weekPattern == "every_week" {
-			// Get timezone for calculations - prefer chore timezone, fallback to UTC
-			var loc *time.Location
-			var err error
-			if chore.FrequencyMetadataV2.Timezone != "" {
-				loc, err = time.LoadLocation(chore.FrequencyMetadataV2.Timezone)
-				if err != nil {
-					log := logging.FromContext(ctx)
-					log.Error("error loading timezone from frequency metadata", "error", err, "timezone", chore.FrequencyMetadataV2.Timezone, "chore_id", chore.ID)
-					loc = time.UTC // fallback to UTC
-				}
-			} else {
-				loc = time.UTC
-			}
 
 			// Convert baseDate to the target timezone for weekday calculations
 			baseDateInTimezone := baseDate.In(loc)
@@ -128,7 +130,15 @@ func ScheduleNextDueDate(ctx context.Context, chore *chModel.Chore, completedDat
 			if len(occurrences) == 0 {
 				return nil, fmt.Errorf("week_of_month requires at least one occurrence")
 			}
-			return findNextDueDateForOccurrencePattern(baseDate, chore.FrequencyMetadataV2.Days, occurrences, true)
+			// Convert baseDate to the target timezone for weekday calculations
+			baseDateInTimezone := baseDate.In(loc)
+			nextDueDateInTimezone, err := findNextDueDateForOccurrencePattern(baseDateInTimezone, chore.FrequencyMetadataV2.Days, occurrences, true)
+			if err != nil {
+				return nil, err
+			}
+			// Convert back to UTC for storage
+			nextDueDateUTC := nextDueDateInTimezone.UTC()
+			return &nextDueDateUTC, nil
 		}
 
 		// Handle week_of_quarter pattern
@@ -137,7 +147,15 @@ func ScheduleNextDueDate(ctx context.Context, chore *chModel.Chore, completedDat
 			if len(occurrences) == 0 {
 				return nil, fmt.Errorf("week_of_quarter requires at least one occurrence")
 			}
-			return findNextDueDateForOccurrencePattern(baseDate, chore.FrequencyMetadataV2.Days, occurrences, false)
+			// Convert baseDate to the target timezone for weekday calculations
+			baseDateInTimezone := baseDate.In(loc)
+			nextDueDateInTimezone, err := findNextDueDateForOccurrencePattern(baseDateInTimezone, chore.FrequencyMetadataV2.Days, occurrences, false)
+			if err != nil {
+				return nil, err
+			}
+			// Convert back to UTC for storage
+			nextDueDateUTC := nextDueDateInTimezone.UTC()
+			return &nextDueDateUTC, nil
 		}
 
 		return nil, fmt.Errorf("invalid week pattern: %s", *weekPattern)

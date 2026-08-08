@@ -19,4 +19,5 @@ const (
 	PointsHistoryActionRemove                             // 1
 	PointsHistoryActionRedeem                             // 2
 	PointsHistoryActionProject                            // 3 — awarded when a project is completed
+	PointsHistoryActionChore                              // 4 — awarded when a chore is completed/approved
 )

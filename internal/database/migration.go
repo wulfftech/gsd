@@ -3,7 +3,6 @@ package database
 import (
 	"embed"
 	"fmt"
-	"os"
 
 	migrate "github.com/rubenv/sql-migrate"
 	"gorm.io/gorm"
@@ -92,19 +91,8 @@ func MigrationScripts(gormDB *gorm.DB, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	var n int
-	if cfg.Database.Type == "sqlite" {
 
-		path := os.Getenv("DT_SQLITE_PATH")
-		if path == "" {
-			path = "donetick.db"
-		}
-		n, err = migrate.Exec(db, "sqlite3", migrations, migrate.Up)
-	} else if cfg.Database.Type == "postgres" {
-		n, err = migrate.Exec(db, "postgres", migrations, migrate.Up)
-	}
-
-	n, err = migrate.Exec(db, dialect, migrations, migrate.Up)
+	n, err := migrate.Exec(db, dialect, migrations, migrate.Up)
 	if err != nil {
 		return err
 	}

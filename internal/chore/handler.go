@@ -1446,6 +1446,10 @@ func (h *Handler) skipChore(c *gin.Context) {
 		})
 		return
 	}
+	if chore.NextDueDate == nil {
+		c.JSON(400, gin.H{"error": "Chore has no due date to skip"})
+		return
+	}
 	nextDueDate, err := scheduleNextDueDate(c, chore, chore.NextDueDate.UTC())
 	if err != nil {
 		c.JSON(500, gin.H{
@@ -1987,7 +1991,9 @@ func (h *Handler) completeChore(c *gin.Context) {
 		return
 	}
 	if updatedChore.SubTasks != nil && updatedChore.FrequencyType != chModel.FrequencyTypeOnce {
-		h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID)
+		if err := h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID); err != nil {
+			logging.FromContext(c).Errorw("Failed to reset subtasks completion", "error", err, "choreID", updatedChore.ID)
+		}
 	}
 
 	// go func() {
@@ -3138,7 +3144,9 @@ func (h *Handler) approveChore(c *gin.Context) {
 	}
 
 	if updatedChore.SubTasks != nil && updatedChore.FrequencyType != chModel.FrequencyTypeOnce {
-		h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID)
+		if err := h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID); err != nil {
+			logging.FromContext(c).Errorw("Failed to reset subtasks completion", "error", err, "choreID", updatedChore.ID)
+		}
 	}
 
 	h.nPlanner.GenerateNotifications(c, updatedChore)
