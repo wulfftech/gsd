@@ -12,6 +12,7 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy'
+import { useNavigate } from 'react-router-dom'
 import { useChores, useChoresHistory } from '../../queries/ChoreQueries'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { resolvePhotoURL } from '../../utils/Helpers'
@@ -42,12 +43,13 @@ const formatDue = dateStr => {
 const isOverdue = dateStr => new Date(dateStr) < new Date()
 
 // ── Chore row (left panel) ────────────────────────────────────────────────────
-const ChoreRow = ({ chore, members }) => {
+const ChoreRow = ({ chore, members, navigate }) => {
   const overdue = isOverdue(chore.nextDueDate)
   const assignee = members.find(m => m.userId === chore.assignedTo)
 
   return (
     <Box
+      onClick={() => navigate(`/chores/${chore.id}`)}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -61,6 +63,8 @@ const ChoreRow = ({ chore, members }) => {
         bgcolor: overdue ? 'danger.softBg' : 'background.surface',
         borderLeft: '3px solid',
         borderLeftColor: overdue ? 'var(--joy-palette-danger-400)' : 'var(--joy-palette-primary-400)',
+        cursor: 'pointer',
+        '&:hover': { filter: 'brightness(0.97)' },
       }}
     >
       {overdue ? (
@@ -94,7 +98,11 @@ const ChoreRow = ({ chore, members }) => {
       {assignee && (
         <Avatar
           src={resolvePhotoURL(assignee.image)}
-          sx={{ width: 22, height: 22, fontSize: 10, flexShrink: 0 }}
+          onClick={e => {
+            e.stopPropagation()
+            navigate(`/points?userId=${assignee.userId}`)
+          }}
+          sx={{ width: 22, height: 22, fontSize: 10, flexShrink: 0, cursor: 'pointer' }}
         >
           {assignee.displayName?.charAt(0)}
         </Avatar>
@@ -104,11 +112,12 @@ const ChoreRow = ({ chore, members }) => {
 }
 
 // ── Project task row (left panel) ─────────────────────────────────────────────
-const ProjectTaskRow = ({ task }) => {
+const ProjectTaskRow = ({ task, navigate }) => {
   const projectColor = task.project.color || '#9c27b0'
 
   return (
     <Box
+      onClick={() => navigate(`/projects?projectId=${task.project.id}&taskId=${task.id}`)}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -121,6 +130,8 @@ const ProjectTaskRow = ({ task }) => {
         borderColor: 'warning.200',
         bgcolor: 'warning.softBg',
         borderLeft: `3px solid ${projectColor}`,
+        cursor: 'pointer',
+        '&:hover': { filter: 'brightness(0.97)' },
       }}
     >
       <FolderOpenIcon sx={{ fontSize: 15, color: projectColor, flexShrink: 0 }} />
@@ -150,7 +161,7 @@ const ProjectTaskRow = ({ task }) => {
 }
 
 // ── User card (right panel) ───────────────────────────────────────────────────
-const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, points }) => {
+const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, points, navigate }) => {
   // Show up to 3 task names, then "+N more"
   const MAX_SHOWN = 3
   const shown = assignedChores.slice(0, MAX_SHOWN)
@@ -173,6 +184,7 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
     >
       {/* Avatar + name column */}
       <Box
+        onClick={() => navigate(`/points?userId=${member.userId}`)}
         sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -182,6 +194,8 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
           px: 1.5,
           minWidth: 64,
           bgcolor: 'background.level1',
+          cursor: 'pointer',
+          '&:hover': { filter: 'brightness(0.97)' },
         }}
       >
         <Avatar
@@ -231,15 +245,18 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
               <Typography
                 key={c.id}
                 level='body-xs'
+                onClick={() => navigate(`/chores/${c.id}`)}
                 sx={{
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   lineHeight: 1.4,
                   fontSize: 11,
+                  cursor: 'pointer',
                   color: isOverdue(c.nextDueDate)
                     ? 'var(--joy-palette-danger-500)'
                     : 'text.primary',
+                  '&:hover': { textDecoration: 'underline' },
                 }}
               >
                 · {c.name}
@@ -251,7 +268,12 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
               </Typography>
             )}
             {projectTaskCount > 0 && (
-              <Typography level='body-xs' color='warning' sx={{ fontSize: 10 }}>
+              <Typography
+                level='body-xs'
+                color='warning'
+                onClick={() => navigate('/projects')}
+                sx={{ fontSize: 10, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              >
                 {projectTaskCount} project {projectTaskCount === 1 ? 'task' : 'tasks'}
               </Typography>
             )}
@@ -272,7 +294,10 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
           minWidth: 72,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box
+          onClick={() => navigate(`/points?userId=${member.userId}`)}
+          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+        >
           <EmojiEventsIcon sx={{ fontSize: 13, color: 'warning.500' }} />
           <Typography level='body-xs' sx={{ fontSize: 11, color: 'warning.600', fontWeight: 600 }}>
             {points}
@@ -314,6 +339,7 @@ const SectionHeader = ({ children, count }) => (
 
 // ── Main view ─────────────────────────────────────────────────────────────────
 const DashboardView = () => {
+  const navigate = useNavigate()
   const { data: choresData, isLoading: choresLoading } = useChores(false)
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: circleMembersData } = useCircleMembers()
@@ -429,7 +455,7 @@ const DashboardView = () => {
           ) : (
             <>
               {dueSoonChores.map(c => (
-                <ChoreRow key={`c-${c.id}`} chore={c} members={members} />
+                <ChoreRow key={`c-${c.id}`} chore={c} members={members} navigate={navigate} />
               ))}
 
               {pendingProjectTasks.length > 0 && (
@@ -450,7 +476,7 @@ const DashboardView = () => {
                     </Typography>
                   )}
                   {pendingProjectTasks.map(t => (
-                    <ProjectTaskRow key={`pt-${t.id}`} task={t} />
+                    <ProjectTaskRow key={`pt-${t.id}`} task={t} navigate={navigate} />
                   ))}
                 </>
               )}
@@ -485,6 +511,7 @@ const DashboardView = () => {
                 projectTaskCount={projectTaskCountByUser[m.userId] || 0}
                 completedToday={completedTodayByUser[m.userId] || 0}
                 points={availablePoints(m)}
+                navigate={navigate}
               />
             ))
           )}

@@ -40,6 +40,7 @@ import {
   Typography,
 } from '@mui/joy'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import LoadingComponent from '../components/Loading.jsx'
 
 import { useChoresHistory } from '../../queries/ChoreQueries.jsx'
@@ -67,7 +68,11 @@ const UserPoints = () => {
   } = useChoresHistory(7)
 
   const { data: userProfile } = useUserProfile()
-  const [selectedUser, setSelectedUser] = useState(userProfile?.id)
+  const [searchParams] = useSearchParams()
+  const queryUserId = searchParams.get('userId')
+  const [selectedUser, setSelectedUser] = useState(
+    queryUserId ? Number(queryUserId) : userProfile?.id,
+  )
   const [circleUsers, setCircleUsers] = useState([])
   const [selectedHistory, setSelectedHistory] = useState([])
 
@@ -96,8 +101,8 @@ const UserPoints = () => {
   }, [selectedUser, choresHistoryData, tabValue])
 
   useEffect(() => {
-    setSelectedUser(userProfile?.id)
-  }, [userProfile])
+    setSelectedUser(queryUserId ? Number(queryUserId) : userProfile?.id)
+  }, [userProfile, queryUserId])
 
   const generateWeeklySummary = (history, userId) => {
     const daysAggregated = []

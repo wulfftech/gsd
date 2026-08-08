@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview", "--prefix", "ui", "--", "--host", "--port", "4173"],
       "port": 4173
+    },
+    {
+      "name": "gsd-ui-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "ui", "--", "--host", "--port", "5173"],
+      "port": 5173
     }
   ]
 }

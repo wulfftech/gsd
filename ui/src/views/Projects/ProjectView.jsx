@@ -26,7 +26,8 @@ import {
   Stack,
   Typography,
 } from '@mui/joy'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { getTextColorFromBackgroundColor } from '../../utils/Colors'
 import { getIconComponent } from '../../utils/ProjectIcons'
@@ -51,7 +52,7 @@ const PROJECT_ACTIVE = 0
 const PROJECT_COMPLETED = 1
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members }) => {
+const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members, highlighted }) => {
   const markDone = useMarkTaskDone()
   const approveTask = useApproveTask()
   const rejectTask = useRejectTask()
@@ -86,6 +87,7 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members 
 
   return (
     <Box
+      id={`task-${task.id}`}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -96,6 +98,8 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members 
         borderColor: 'divider',
         bgcolor: task.status === TASK_PENDING_APPROVAL ? 'warning.softBg' : 'transparent',
         opacity: task.status === TASK_COMPLETED ? 0.65 : 1,
+        outline: highlighted ? '2px solid var(--joy-palette-primary-400)' : 'none',
+        outlineOffset: '-2px',
       }}
     >
       {statusIcon()}
@@ -170,10 +174,10 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members 
 }
 
 // ── Project card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, members }) => {
+const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, members, forceExpand, highlightTaskId }) => {
   // Active projects with tasks start expanded; completed projects start collapsed
   const [expanded, setExpanded] = useState(
-    project.status === PROJECT_ACTIVE && (project.tasks || []).length > 0,
+    forceExpand || (project.status === PROJECT_ACTIVE && (project.tasks || []).length > 0),
   )
   const reopenProject = useReopenProject()
 
@@ -213,11 +217,12 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
 
   return (
     <Box
+      id={`project-${project.id}`}
       sx={{
         mb: 1.5,
         borderRadius: 'md',
-        border: '1px solid',
-        borderColor: 'divider',
+        border: forceExpand ? '2px solid' : '1px solid',
+        borderColor: forceExpand ? 'primary.400' : 'divider',
         bgcolor: 'background.surface',
         overflow: 'hidden',
       }}
@@ -394,6 +399,7 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
                 projectId={project.id}
                 projectStatus={project.status}
                 members={members}
+                highlighted={highlightTaskId != null && String(task.id) === String(highlightTaskId)}
               />
             ))
           )}
@@ -432,9 +438,18 @@ const ProjectView = () => {
   const { data: userProfile } = useUserProfile()
   const { data: circleMembersData } = useCircleMembers()
   const deleteProject = useDeleteProject()
+  const [searchParams] = useSearchParams()
+  const targetProjectId = searchParams.get('projectId')
+  const targetTaskId = searchParams.get('taskId')
 
   const [modalConfig, setModalConfig] = useState(null) // null | { project? }
   const [confirmConfig, setConfirmConfig] = useState({})
+
+  useEffect(() => {
+    if (!targetProjectId || projects.length === 0) return
+    const el = document.getElementById(`project-${targetProjectId}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [targetProjectId, projects.length])
 
   const members = circleMembersData?.res || []
   const isAdmin =
@@ -520,6 +535,8 @@ const ProjectView = () => {
           members={members}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          forceExpand={String(project.id) === String(targetProjectId)}
+          highlightTaskId={String(project.id) === String(targetProjectId) ? targetTaskId : null}
         />
       ))}
 
@@ -542,6 +559,8 @@ const ProjectView = () => {
               members={members}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              forceExpand={String(project.id) === String(targetProjectId)}
+              highlightTaskId={String(project.id) === String(targetProjectId) ? targetTaskId : null}
             />
           ))}
         </>
