@@ -395,10 +395,7 @@ const LoginView = () => {
           )}
           <Logo />
 
-          <Typography level='h2'>
-            Done
-            <span style={{ color: '#06b6d4' }}>tick</span>
-          </Typography>
+          <Typography level='h2'>GSD</Typography>
 
           {userProfile && (
             <>

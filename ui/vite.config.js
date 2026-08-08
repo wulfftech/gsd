@@ -19,8 +19,8 @@ export default defineConfig({
         globIgnores: ['index.html'],
       },
       manifest: {
-        name: 'Donetick: Simplify Tasks & Chores, Together.',
-        short_name: 'Donetick',
+        name: "GSD: Gettin' Shit Done",
+        short_name: 'GSD',
         icons: [
           {
             src: '/android-chrome-192x192.png',

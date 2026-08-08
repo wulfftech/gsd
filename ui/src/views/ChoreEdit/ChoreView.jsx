@@ -119,7 +119,7 @@ const ChoreView = () => {
     }
     setChore(choreData.res)
     setChorePriority(Priorities.find(p => p.value === choreData.res.priority))
-    document.title = 'Donetick: ' + choreData.res.name
+    document.title = 'GSD: ' + choreData.res.name
 
     setPerformers(circleMembersData.res)
     const auto_complete = searchParams.get('auto_complete')

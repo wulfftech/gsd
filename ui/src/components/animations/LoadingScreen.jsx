@@ -82,8 +82,7 @@ const LoadingScreen = ({
                 mb: 1,
               }}
             >
-              Done
-              <span style={{ color: '#06b6d4' }}>tick</span>
+              GSD
             </Typography>
           </LogoContainer>
         )}
