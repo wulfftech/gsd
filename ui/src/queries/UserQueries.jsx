@@ -35,7 +35,7 @@ export const useCircleMembers = () => {
   })
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries(['allCircleMembers'])
+    queryClient.invalidateQueries({ queryKey: ['allCircleMembers'] })
   }
 
   return { data, error, isLoading, handleRefetch }
@@ -75,7 +75,7 @@ export const useUserProfile = () => {
     data,
     error,
     isLoading,
-    refetch: () => queryClient.invalidateQueries(['userProfile']),
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['userProfile'] }),
   }
 }
 
@@ -100,7 +100,8 @@ export const useDeviceTokens = () => {
     data,
     error,
     isLoading,
-    refetch: () => queryClient.invalidateQueries(['deviceTokens']),
+    refetch: () =>
+      queryClient.invalidateQueries({ queryKey: ['deviceTokens'] }),
   }
 }
 
@@ -124,7 +125,8 @@ export const useManagedUsers = () => {
     data,
     error,
     isLoading,
-    refetch: () => queryClient.invalidateQueries(['managedUsers']),
+    refetch: () =>
+      queryClient.invalidateQueries({ queryKey: ['managedUsers'] }),
   }
 }
 

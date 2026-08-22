@@ -60,7 +60,7 @@ export const useUpdate = () => {
     },
     onSuccess: () => {
       // Invalidate the chores query to refresh the data
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
     },
     onMutate: async () => {
       if (!networkManager.isOnline) {

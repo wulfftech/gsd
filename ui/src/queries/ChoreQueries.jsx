@@ -83,7 +83,7 @@ export const useDeleteChores = () => {
         )
         await localStore.saveToCache('offlineTasks', updatedOfflineTasks)
         // Force the chores query to refetch
-        queryClient.invalidateQueries(['chores'])
+        queryClient.invalidateQueries({ queryKey: ['chores'] })
         return
       }
 
@@ -98,7 +98,7 @@ export const useDeleteChores = () => {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
     },
   })
 }
@@ -167,7 +167,7 @@ export const useCreateChore = () => {
     // },
     onSuccess: () => {
       // Invalidate the chores query to refresh the data
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
     },
   })
 }
@@ -238,9 +238,23 @@ export const useUpdateChore = () => {
     },
     onSuccess: (data, variables) => {
       // Invalidate the chores query to refresh the data
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
+      // choreHistory/choreDetails are cached under the string id from the URL
+      // param (see useChoreHistory/useChoreDetails and useSSE.js's
+      // choreDetailsKey), but variables.id here is Number(newChoreId)
+      // (ChoreEdit.jsx) - coerce or the invalidation silently misses.
+      const normalizedChoreId = String(variables.id)
       // Invalidate history for the specific chore
-      queryClient.invalidateQueries(['choreHistory', variables.id])
+      queryClient.invalidateQueries({
+        queryKey: ['choreHistory', normalizedChoreId],
+      })
+      // Also invalidate choreDetails: previously this was only covered by
+      // the v4/v5 blanket-invalidation bug, so ChoreView would go stale
+      // after an edit (until the 5-minute default staleTime elapsed) once
+      // that bug is fixed without this.
+      queryClient.invalidateQueries({
+        queryKey: ['choreDetails', normalizedChoreId],
+      })
     },
     onMutate: async () => {
       if (!networkManager.isOnline && isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
@@ -339,8 +353,13 @@ export const useChore = choreId => {
 
       return { res: offline ? { ...offline } : onlineChore.res }
     },
+    // NOTE: onSuccess on useQuery is a no-op in react-query v5 (removed in
+    // this major version - only useMutation still supports it), so this
+    // invalidation never actually runs. Left as-is: fixing it needs a
+    // restructure (e.g. a useEffect watching the query result), which is
+    // out of scope for this mechanical v4->v5 filters-object pass.
     onSuccess: () => {
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
     },
   })
 }
@@ -351,7 +370,7 @@ export const useArchiveChore = () => {
   return useMutation({
     mutationFn: ArchiveChore,
     onSuccess: () => {
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
     },
   })
 }
@@ -362,7 +381,7 @@ export const useUnArchiveChore = () => {
   return useMutation({
     mutationFn: UnArchiveChore,
     onSuccess: () => {
-      queryClient.invalidateQueries(['chores'])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
     },
   })
 }
@@ -395,7 +414,10 @@ export const useUpdateChoreHistory = () => {
     mutationFn: ({ choreId, historyId, historyData }) =>
       UpdateChoreHistory(choreId, historyId, historyData),
     onSuccess: (data, { choreId }) => {
-      queryClient.invalidateQueries(['choreHistory', choreId])
+      // choreId here always comes from useParams() (ChoreHistory.jsx is the
+      // only caller), which is already a string matching useChoreHistory's
+      // cache key - no coercion needed.
+      queryClient.invalidateQueries({ queryKey: ['choreHistory', choreId] })
     },
   })
 }
@@ -407,7 +429,8 @@ export const useDeleteChoreHistory = () => {
     mutationFn: ({ choreId, historyId }) =>
       DeleteChoreHistory(choreId, historyId),
     onSuccess: (data, { choreId }) => {
-      queryClient.invalidateQueries(['choreHistory', choreId])
+      // Same as useUpdateChoreHistory above - choreId is already a string.
+      queryClient.invalidateQueries({ queryKey: ['choreHistory', choreId] })
     },
   })
 }
@@ -419,9 +442,20 @@ export const useMarkChoreComplete = () => {
     mutationFn: ({ choreId, body, completedDate, performer }) =>
       MarkChoreComplete(choreId, body, completedDate, performer),
     onSuccess: (data, { choreId }) => {
-      queryClient.invalidateQueries(['chores'])
-      queryClient.invalidateQueries(['choreHistory', choreId])
-      queryClient.invalidateQueries(['choreDetails', choreId])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
+      // Not currently called anywhere in the app (MarkChoreComplete is
+      // invoked directly from useChoreActions.js instead), but its sibling
+      // call sites pass chore.id - a number from the chores list - while
+      // choreHistory/choreDetails are cached under the string id from the
+      // URL param (see useSSE.js's choreDetailsKey for the same reasoning).
+      // Coerce defensively so this doesn't silently miss if ever wired up.
+      const normalizedChoreId = String(choreId)
+      queryClient.invalidateQueries({
+        queryKey: ['choreHistory', normalizedChoreId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['choreDetails', normalizedChoreId],
+      })
     },
   })
 }
@@ -432,9 +466,16 @@ export const useSkipChore = () => {
   return useMutation({
     mutationFn: SkipChore,
     onSuccess: (data, choreId) => {
-      queryClient.invalidateQueries(['chores'])
-      queryClient.invalidateQueries(['choreHistory', choreId])
-      queryClient.invalidateQueries(['choreDetails', choreId])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
+      // Same reasoning as useMarkChoreComplete above - unused currently,
+      // coerce defensively to match the string-keyed caches.
+      const normalizedChoreId = String(choreId)
+      queryClient.invalidateQueries({
+        queryKey: ['choreHistory', normalizedChoreId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['choreDetails', normalizedChoreId],
+      })
     },
   })
 }
@@ -445,9 +486,15 @@ export const useApproveChore = () => {
   return useMutation({
     mutationFn: ApproveChore,
     onSuccess: (data, choreId) => {
-      queryClient.invalidateQueries(['chores'])
-      queryClient.invalidateQueries(['choreHistory', choreId])
-      queryClient.invalidateQueries(['choreDetails', choreId])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
+      // Same reasoning as useMarkChoreComplete above.
+      const normalizedChoreId = String(choreId)
+      queryClient.invalidateQueries({
+        queryKey: ['choreHistory', normalizedChoreId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['choreDetails', normalizedChoreId],
+      })
     },
   })
 }
@@ -458,9 +505,15 @@ export const useRejectChore = () => {
   return useMutation({
     mutationFn: RejectChore,
     onSuccess: (data, choreId) => {
-      queryClient.invalidateQueries(['chores'])
-      queryClient.invalidateQueries(['choreHistory', choreId])
-      queryClient.invalidateQueries(['choreDetails', choreId])
+      queryClient.invalidateQueries({ queryKey: ['chores'] })
+      // Same reasoning as useMarkChoreComplete above.
+      const normalizedChoreId = String(choreId)
+      queryClient.invalidateQueries({
+        queryKey: ['choreHistory', normalizedChoreId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['choreDetails', normalizedChoreId],
+      })
     },
   })
 }
