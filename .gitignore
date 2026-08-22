@@ -10,7 +10,7 @@ donetick.db
 # Frontend
 ui/node_modules/
 ui/dist/
-ui/.husky/
+ui/.husky/_/
 ui/android/
 ui/ios/
 
