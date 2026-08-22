@@ -94,7 +94,6 @@ const LoginView = () => {
   }, [])
   useEffect(() => {
     if (isAuthenticated && user) {
-      setUserProfile(user)
       Navigate('/chores')
     }
   }, [isAuthenticated, user, Navigate])

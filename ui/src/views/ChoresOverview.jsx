@@ -330,7 +330,7 @@ const ChoresOverview = () => {
                 response.json().then(data => {
                   const newChore = data.res
                   const newChores = [...chores]
-                  const index = newChores.findIndex(c => c.id === chore.id)
+                  const index = newChores.findIndex(c => c.id === choreId)
                   newChores[index] = newChore
                   setChores(newChores)
                   setFilteredChores(newChores)
