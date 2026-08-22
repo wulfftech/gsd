@@ -313,7 +313,15 @@ const FilterView = () => {
 
       setFilterCounts(counts)
     }
-  }, [chores, filtersData, userProfile?.id, labels, projects, membersData?.res])
+  }, [
+    chores,
+    filtersData,
+    savedFilters,
+    userProfile?.id,
+    labels,
+    projects,
+    membersData?.res,
+  ])
 
   const handleAddFilter = () => {
     setEditingFilter(null)

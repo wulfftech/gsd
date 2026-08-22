@@ -118,72 +118,6 @@ const TaskInput = ({ autoFocus, onChoreUpdate, isModalOpen, onClose }) => {
   }, [hasDescription])
 
   // set showKeyboardShortcuts true as soon as the user hold ctrl or cmd key:
-  useEffect(() => {
-    const handleKeyDown = event => {
-      const isHoldingCmd = event.ctrlKey || event.metaKey
-      if (isHoldingCmd) {
-        // event.preventDefault()
-        setShowKeyboardShortcuts(true)
-      }
-      if (
-        isHoldingCmd &&
-        event.key.toLowerCase() === 'e' &&
-        isModalOpen &&
-        !hasDescription
-      ) {
-        setHasDescription(true)
-        setShowKeyboardShortcuts(false)
-      }
-      if (isHoldingCmd && event.key.toLowerCase() === 'j' && isModalOpen) {
-        // add subtask:
-        setHasSubTasks(true)
-        setShowKeyboardShortcuts(false)
-        // set focus on the first subtask input:
-      }
-      if (
-        isHoldingCmd &&
-        event.key.toLowerCase() === 'b' &&
-        isModalOpen &&
-        !dueDate
-      ) {
-        // add due date:
-        const tomorrow = moment().add(1, 'day')
-        setDueDateOnly(tomorrow.format('YYYY-MM-DD'))
-        setDueDate(tomorrow.endOf('day').format('YYYY-MM-DDTHH:mm:59'))
-        setUseCustomTime(false)
-        setDueTime(null)
-        setShowKeyboardShortcuts(false)
-      }
-      // Enter key to create task
-      if (
-        event.key === 'Enter' &&
-        (event.ctrlKey || event.metaKey) &&
-        isModalOpen
-      ) {
-        event.preventDefault()
-        createChore()
-        return
-      }
-      // Escape key to cancel/close modal
-      if (event.key === 'Escape' && isModalOpen) {
-        event.preventDefault()
-        handleCloseModal()
-        return
-      }
-    }
-
-    const handleKeyUp = event => {
-      if (event.key === 'Control' || event.key === 'Meta') {
-        setShowKeyboardShortcuts(false)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [])
 
   useEffect(() => {
     if (isModalOpen && textareaRef.current) {
@@ -546,31 +480,34 @@ const TaskInput = ({ autoFocus, onChoreUpdate, isModalOpen, onClose }) => {
     createChore()
   }
 
-  const handleCloseModal = forceRefetch => {
-    onClose(forceRefetch)
-    setTaskText('')
-    setTaskTitle('')
-    setDueDate(null)
-    setFrequency(null)
-    setFrequencyHumanReadable(null)
-    setPriority(0)
-    setPoints(-1)
-    setIsAnyoneTask(false)
-    setHasDescription(false)
-    setDescription(null)
-    setSubTasks(null)
-    setHasSubTasks(false)
-    setLabelsV2([])
-    setAssignees([])
-    setProjectId(getInitialProject())
-    setHasDeadline(false)
-    setDeadlineOffset(-1)
-    setDueDateOnly(null)
-    setDueTime(null)
-    setUseCustomTime(false)
-  }
+  const handleCloseModal = useCallback(
+    forceRefetch => {
+      onClose(forceRefetch)
+      setTaskText('')
+      setTaskTitle('')
+      setDueDate(null)
+      setFrequency(null)
+      setFrequencyHumanReadable(null)
+      setPriority(0)
+      setPoints(-1)
+      setIsAnyoneTask(false)
+      setHasDescription(false)
+      setDescription(null)
+      setSubTasks(null)
+      setHasSubTasks(false)
+      setLabelsV2([])
+      setAssignees([])
+      setProjectId(getInitialProject())
+      setHasDeadline(false)
+      setDeadlineOffset(-1)
+      setDueDateOnly(null)
+      setDueTime(null)
+      setUseCustomTime(false)
+    },
+    [onClose],
+  )
 
-  const createChore = () => {
+  const createChore = useCallback(() => {
     // Handle different assignee scenarios
     let finalAssignees = assignees
     let finalAssignedTo = null
@@ -657,7 +594,92 @@ const TaskInput = ({ autoFocus, onChoreUpdate, isModalOpen, onClose }) => {
         }
       })
     handleCloseModal(false)
-  }
+  }, [
+    assignees,
+    createChoreMutation,
+    deadlineOffset,
+    description,
+    dueDate,
+    frequency,
+    handleCloseModal,
+    isAnyoneTask,
+    labelsV2,
+    notificationMetadata,
+    onChoreUpdate,
+    points,
+    priority,
+    projectId,
+    subTasks,
+    taskTitle,
+    userProfile,
+  ])
+
+  useEffect(() => {
+    const handleKeyDown = event => {
+      const isHoldingCmd = event.ctrlKey || event.metaKey
+      if (isHoldingCmd) {
+        // event.preventDefault()
+        setShowKeyboardShortcuts(true)
+      }
+      if (
+        isHoldingCmd &&
+        event.key.toLowerCase() === 'e' &&
+        isModalOpen &&
+        !hasDescription
+      ) {
+        setHasDescription(true)
+        setShowKeyboardShortcuts(false)
+      }
+      if (isHoldingCmd && event.key.toLowerCase() === 'j' && isModalOpen) {
+        // add subtask:
+        setHasSubTasks(true)
+        setShowKeyboardShortcuts(false)
+        // set focus on the first subtask input:
+      }
+      if (
+        isHoldingCmd &&
+        event.key.toLowerCase() === 'b' &&
+        isModalOpen &&
+        !dueDate
+      ) {
+        // add due date:
+        const tomorrow = moment().add(1, 'day')
+        setDueDateOnly(tomorrow.format('YYYY-MM-DD'))
+        setDueDate(tomorrow.endOf('day').format('YYYY-MM-DDTHH:mm:59'))
+        setUseCustomTime(false)
+        setDueTime(null)
+        setShowKeyboardShortcuts(false)
+      }
+      // Enter key to create task
+      if (
+        event.key === 'Enter' &&
+        (event.ctrlKey || event.metaKey) &&
+        isModalOpen
+      ) {
+        event.preventDefault()
+        createChore()
+        return
+      }
+      // Escape key to cancel/close modal
+      if (event.key === 'Escape' && isModalOpen) {
+        event.preventDefault()
+        handleCloseModal()
+        return
+      }
+    }
+
+    const handleKeyUp = event => {
+      if (event.key === 'Control' || event.key === 'Meta') {
+        setShowKeyboardShortcuts(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [createChore, dueDate, handleCloseModal, hasDescription, isModalOpen])
   if (userLabelsLoading || isCircleMembersLoading || isProjectsLoading) {
     return <></>
   }

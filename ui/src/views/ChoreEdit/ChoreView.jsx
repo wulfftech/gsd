@@ -38,7 +38,7 @@ import {
 import { Divider } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import moment from 'moment'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -115,26 +115,6 @@ const ChoreView = () => {
   const resetChoreTimer = useResetChoreTimer()
   const { data: choreTimer } = useChoreTimer(choreId)
 
-  useEffect(() => {
-    if (!choreData || !choreData.res || !circleMembersData) {
-      return
-    }
-    setChore(choreData.res)
-    setChorePriority(Priorities.find(p => p.value === choreData.res.priority))
-    document.title = 'GSD: ' + choreData.res.name
-
-    setPerformers(circleMembersData.res)
-    const auto_complete = searchParams.get('auto_complete')
-    if (auto_complete === 'true') {
-      handleTaskCompletion()
-    }
-  }, [choreData, circleMembersData])
-
-  useEffect(() => {
-    if (chore && performers?.length > 0) {
-      generateInfoCards(chore)
-    }
-  }, [chore, performers])
   const handleUpdatePriority = priority => {
     UpdateChorePriority(choreId, priority.value).then(response => {
       if (response.ok) {
@@ -146,135 +126,151 @@ const ChoreView = () => {
       }
     })
   }
-  const generateInfoCards = chore => {
-    const cards = [
-      {
-        size: 6,
-        icon: <PeopleAlt />,
-        title: t('choreView.assignment'),
-        text: `${t('choreView.assigned')}: ${
-          performers.find(p => p.userId === chore.assignedTo)?.displayName ||
-          t('choreView.na')
-        }`,
-        subtext: ` ${t('choreView.last')}: ${
-          chore.lastCompletedDate
-            ? performers.find(p => p.userId === chore.lastCompletedBy)
-                ?.displayName
-            : 'N/A'
-        }`,
-      },
-      {
-        size: 6,
-        icon: <CalendarMonth />,
-        title: t('choreView.schedule'),
-        text: `${t('choreView.due')}: ${
-          chore.nextDueDate
-            ? moment(chore.nextDueDate).fromNow()
-            : t('choreView.na')
-        }`,
-        subtext: `${t('choreView.last')}: ${
-          chore.lastCompletedDate
-            ? moment(chore.lastCompletedDate).fromNow()
-            : t('choreView.na')
-        }`,
+  const generateInfoCards = useCallback(
+    chore => {
+      const cards = [
+        {
+          size: 6,
+          icon: <PeopleAlt />,
+          title: t('choreView.assignment'),
+          text: `${t('choreView.assigned')}: ${
+            performers.find(p => p.userId === chore.assignedTo)?.displayName ||
+            t('choreView.na')
+          }`,
+          subtext: ` ${t('choreView.last')}: ${
+            chore.lastCompletedDate
+              ? performers.find(p => p.userId === chore.lastCompletedBy)
+                  ?.displayName
+              : 'N/A'
+          }`,
+        },
+        {
+          size: 6,
+          icon: <CalendarMonth />,
+          title: t('choreView.schedule'),
+          text: `${t('choreView.due')}: ${
+            chore.nextDueDate
+              ? moment(chore.nextDueDate).fromNow()
+              : t('choreView.na')
+          }`,
+          subtext: `${t('choreView.last')}: ${
+            chore.lastCompletedDate
+              ? moment(chore.lastCompletedDate).fromNow()
+              : t('choreView.na')
+          }`,
 
-        subtext2:
-          chore.deadlineOffset > 0 && chore.nextDueDate
-            ? `Deadline: ${moment(chore.nextDueDate).add(chore.deadlineOffset, 'seconds').fromNow()}`
-            : null,
-      },
-      {
-        size: 6,
-        icon: <Checklist />,
-        title: t('choreView.statistics'),
-        text: `${t('choreView.completed')}: ${chore.totalCompletedCount || 0} ${t('choreView.times')}`,
-      },
-      {
-        size: 6,
-        icon: <Person />,
-        title: t('choreView.details'),
-        subtext: `${t('choreView.createdBy')}: ${
-          performers.find(p => p.userId === chore.createdBy)?.displayName ||
-          t('choreView.na')
-        }`,
-      },
-    ]
-    setInfoCards(cards)
-  }
-  const completeTask = completedBy => {
-    MarkChoreComplete(
-      choreId,
-      completedBy != null
-        ? { completedBy, note }
-        : impersonatedUser
-          ? { completedBy: impersonatedUser.userId, note }
-          : { note },
-      completedDate,
-      null,
-    )
-      .then(resp => {
-        if (resp.ok) {
-          return resp.json().then(data => {
-            setNote(null)
-            setChore(data.res)
-          })
-        }
-      })
-      .then(() => {
-        // Invalidate chores cache to refetch data
-        queryClient.invalidateQueries(['chores'])
-      })
-      .then(() => {
-        // refetch the chore details
-        GetChoreDetailById(choreId).then(resp => {
+          subtext2:
+            chore.deadlineOffset > 0 && chore.nextDueDate
+              ? `Deadline: ${moment(chore.nextDueDate).add(chore.deadlineOffset, 'seconds').fromNow()}`
+              : null,
+        },
+        {
+          size: 6,
+          icon: <Checklist />,
+          title: t('choreView.statistics'),
+          text: `${t('choreView.completed')}: ${chore.totalCompletedCount || 0} ${t('choreView.times')}`,
+        },
+        {
+          size: 6,
+          icon: <Person />,
+          title: t('choreView.details'),
+          subtext: `${t('choreView.createdBy')}: ${
+            performers.find(p => p.userId === chore.createdBy)?.displayName ||
+            t('choreView.na')
+          }`,
+        },
+      ]
+      setInfoCards(cards)
+    },
+    [performers, t],
+  )
+  const completeTask = useCallback(
+    completedBy => {
+      MarkChoreComplete(
+        choreId,
+        completedBy != null
+          ? { completedBy, note }
+          : impersonatedUser
+            ? { completedBy: impersonatedUser.userId, note }
+            : { note },
+        completedDate,
+        null,
+      )
+        .then(resp => {
           if (resp.ok) {
             return resp.json().then(data => {
+              setNote(null)
               setChore(data.res)
             })
           }
         })
-      })
-      .then(() => {
-        // Show undo notification
-        showSuccess({
-          title: t('choreView.taskCompleted'),
-          message: t('choreView.taskCompletedMessage'),
-          undoAction: async () => {
-            try {
-              const undoResponse = await UndoChoreAction(choreId)
-              if (undoResponse.ok) {
-                // Refetch chore details after undo
-                const detailResponse = await GetChoreDetailById(choreId)
-                if (detailResponse.ok) {
-                  const detailData = await detailResponse.json()
-                  setChore(detailData.res)
-                  queryClient.invalidateQueries(['chores'])
-                }
-                showUndo({
-                  title: t('choreView.undoSuccessful'),
-                  message: t('choreView.taskCompletionUndone'),
-                })
-              } else {
-                throw new Error('Failed to undo')
-              }
-            } catch (error) {
-              showError({
-                title: t('choreView.undoFailed'),
-                message: t('choreView.undoFailedMessage'),
+        .then(() => {
+          // Invalidate chores cache to refetch data
+          queryClient.invalidateQueries(['chores'])
+        })
+        .then(() => {
+          // refetch the chore details
+          GetChoreDetailById(choreId).then(resp => {
+            if (resp.ok) {
+              return resp.json().then(data => {
+                setChore(data.res)
               })
             }
-          },
+          })
         })
-      })
-  }
+        .then(() => {
+          // Show undo notification
+          showSuccess({
+            title: t('choreView.taskCompleted'),
+            message: t('choreView.taskCompletedMessage'),
+            undoAction: async () => {
+              try {
+                const undoResponse = await UndoChoreAction(choreId)
+                if (undoResponse.ok) {
+                  // Refetch chore details after undo
+                  const detailResponse = await GetChoreDetailById(choreId)
+                  if (detailResponse.ok) {
+                    const detailData = await detailResponse.json()
+                    setChore(detailData.res)
+                    queryClient.invalidateQueries(['chores'])
+                  }
+                  showUndo({
+                    title: t('choreView.undoSuccessful'),
+                    message: t('choreView.taskCompletionUndone'),
+                  })
+                } else {
+                  throw new Error('Failed to undo')
+                }
+              } catch (error) {
+                showError({
+                  title: t('choreView.undoFailed'),
+                  message: t('choreView.undoFailedMessage'),
+                })
+              }
+            },
+          })
+        })
+    },
+    [
+      choreId,
+      completedDate,
+      impersonatedUser,
+      note,
+      queryClient,
+      showError,
+      showSuccess,
+      showUndo,
+      t,
+    ],
+  )
 
-  const isChoreUnassigned = () => {
+  const isChoreUnassigned = useCallback(() => {
     return (
       !chore.assignedTo && (!chore.assignees || chore.assignees.length === 0)
     )
-  }
+  }, [chore.assignedTo, chore.assignees])
 
-  const handleTaskCompletion = () => {
+  const handleTaskCompletion = useCallback(() => {
     if (isChoreUnassigned() && !impersonatedUser) {
       setPerformerPickerConfig({
         isOpen: true,
@@ -289,7 +285,34 @@ const ChoreView = () => {
     } else {
       completeTask(null)
     }
-  }
+  }, [
+    completeTask,
+    impersonatedUser,
+    isChoreUnassigned,
+    performers,
+    userProfile?.id,
+  ])
+
+  useEffect(() => {
+    if (!choreData || !choreData.res || !circleMembersData) {
+      return
+    }
+    setChore(choreData.res)
+    setChorePriority(Priorities.find(p => p.value === choreData.res.priority))
+    document.title = 'GSD: ' + choreData.res.name
+
+    setPerformers(circleMembersData.res)
+    const auto_complete = searchParams.get('auto_complete')
+    if (auto_complete === 'true') {
+      handleTaskCompletion()
+    }
+  }, [choreData, circleMembersData, handleTaskCompletion, searchParams])
+
+  useEffect(() => {
+    if (chore && performers?.length > 0) {
+      generateInfoCards(chore)
+    }
+  }, [chore, performers, generateInfoCards])
 
   const handleSkippingTask = () => {
     SkipChore(choreId).then(response => {

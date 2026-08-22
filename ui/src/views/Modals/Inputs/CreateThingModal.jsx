@@ -29,6 +29,9 @@ function CreateThingModal({ isOpen, onClose, onSave, currentThing }) {
         setState(0)
       }
     }
+    // `state` is deliberately not a dependency: this coerces the value when the
+    // thing's type changes, not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type])
 
   const isValid = () => {

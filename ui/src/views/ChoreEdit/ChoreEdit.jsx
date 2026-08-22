@@ -27,7 +27,7 @@ import {
   Typography,
 } from '@mui/joy'
 import moment from 'moment'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import DurationInput from '../../components/common/DurationInput'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
@@ -148,7 +148,7 @@ const ChoreEdit = () => {
 
   const Navigate = useNavigate()
 
-  const HandleValidateChore = () => {
+  const HandleValidateChore = useCallback(() => {
     const errors = {}
 
     if (name.trim() === '') {
@@ -223,7 +223,18 @@ const ChoreEdit = () => {
     }
 
     return true
-  }
+  }, [
+    assignStrategy,
+    assignedTo,
+    assignees.length,
+    dueDate,
+    frequency,
+    frequencyMetadata,
+    frequencyType,
+    isThingValid,
+    name,
+    showError,
+  ])
 
   const handleDueDateChange = e => {
     const dateValue = e.target.value // YYYY-MM-DD format
@@ -309,7 +320,7 @@ const ChoreEdit = () => {
       }
     }
   }
-  const HandleSaveChore = () => {
+  const HandleSaveChore = useCallback(() => {
     setAttemptToSave(true)
     if (!HandleValidateChore()) {
       console.log('validation failed')
@@ -369,7 +380,41 @@ const ChoreEdit = () => {
           message: 'Failed to save chore, please try again.',
         })
       })
-  }
+  }, [
+    HandleValidateChore,
+    Navigate,
+    assignStrategy,
+    assignedTo,
+    assignees,
+    choreId,
+    completionWindow,
+    createChoreMutation.mutateAsync,
+    deadlineOffset,
+    description,
+    dueDate,
+    errors,
+    frequency,
+    frequencyMetadata,
+    frequencyType,
+    isActive,
+    isNotificable,
+    isPrivate,
+    isRolling,
+    labels,
+    labelsV2,
+    name,
+    notificationMetadata,
+    points,
+    priority,
+    projectId,
+    requireApproval,
+    searchParams,
+    showError,
+    showSuccess,
+    subTasks,
+    thingTrigger,
+    updateChoreMutation.mutateAsync,
+  ])
   useEffect(() => {
     //fetch performers:
     GetAllCircleMembers().then(data => {
@@ -405,7 +450,7 @@ const ChoreEdit = () => {
         setAssignees(savedAssignees)
       }
     }
-  }, [])
+  }, [choreId])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -537,7 +582,7 @@ const ChoreEdit = () => {
       setCreatedBy(data.res.createdBy)
       setUpdatedBy(data.res.updatedBy)
     }
-  }, [choreData, isChoreLoading, searchParams])
+  }, [choreData, isChoreLoading, searchParams, choreId])
 
   // useEffect(() => {
   //   if (userLabels && userLabels.length == 0 && labelsV2.length == 0) {
@@ -563,7 +608,7 @@ const ChoreEdit = () => {
       setUseCustomTime(false)
       setDueTime(null)
     }
-  }, [frequencyType])
+  }, [frequencyType, dueDate])
 
   useEffect(() => {
     if (assignees.length === 0) {
@@ -592,7 +637,26 @@ const ChoreEdit = () => {
     if (attemptToSave) {
       HandleValidateChore()
     }
-  }, [assignees, name, frequencyMetadata, attemptToSave, dueDate])
+  }, [
+    assignees,
+    name,
+    frequencyMetadata,
+    attemptToSave,
+    dueDate,
+    HandleValidateChore,
+  ])
+
+  const handleThingTriggerUpdate = useCallback(thingUpdate => {
+    if (thingUpdate === null) {
+      setThingTrigger(null)
+      return
+    }
+    setThingTrigger({
+      triggerState: thingUpdate.triggerState,
+      condition: thingUpdate.condition,
+      thingID: thingUpdate.thing.id,
+    })
+  }, [])
 
   const handleDelete = () => {
     setConfirmModelConfig({
@@ -1068,17 +1132,7 @@ const ChoreEdit = () => {
           onFrequencyMetadataUpdate={setFrequencyMetadata}
           frequencyError={errors?.frequency}
           allUserThings={allUserThings}
-          onTriggerUpdate={thingUpdate => {
-            if (thingUpdate === null) {
-              setThingTrigger(null)
-              return
-            }
-            setThingTrigger({
-              triggerState: thingUpdate.triggerState,
-              condition: thingUpdate.condition,
-              thingID: thingUpdate.thing.id,
-            })
-          }}
+          onTriggerUpdate={handleThingTriggerUpdate}
           OnTriggerValidate={setIsThingValid}
           isAttemptToSave={attemptToSave}
           selectedThing={thingTrigger}

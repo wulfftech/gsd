@@ -405,6 +405,9 @@ export const useChoreActions = ({
       }
     },
     [
+      queryClient,
+      refetchChores,
+      showUndo,
       impersonatedUser,
       chores,
       filteredChores,
@@ -585,6 +588,7 @@ export const useChoreActions = ({
       },
     })
   }, [
+    chores,
     getSelectedChoresData,
     impersonatedUser,
     showSuccess,
@@ -657,6 +661,7 @@ export const useChoreActions = ({
       },
     })
   }, [
+    chores,
     getSelectedChoresData,
     archiveChore,
     setChores,
@@ -808,6 +813,7 @@ export const useChoreActions = ({
       },
     })
   }, [
+    chores,
     getSelectedChoresData,
     showSuccess,
     showError,

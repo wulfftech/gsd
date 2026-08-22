@@ -197,7 +197,15 @@ const RichTextEditor = forwardRef(
           editorRef.current.readOnly = false
         }
       }
-    }, [onChange, value, isEditable, variant, handleImageUpload, userProfile]) // Added handleImageUpload and userProfile to dependency array
+    }, [
+      onChange,
+      value,
+      isEditable,
+      variant,
+      placeholder,
+      handleImageUpload,
+      userProfile,
+    ])
 
     useEffect(() => {
       if (editorRef.current && isEditable) {

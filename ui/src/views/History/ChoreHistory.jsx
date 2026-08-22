@@ -20,7 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Button, Card, Container, Grid, Sheet, Typography } from '@mui/joy'
 import moment from 'moment'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLocalization } from '../../contexts/LocalizationContext'
 import useConfirmationModal from '../../hooks/useConfirmationModal'
@@ -55,8 +55,14 @@ const ChoreHistory = () => {
   const updateChoreHistory = useUpdateChoreHistory()
   const deleteChoreHistory = useDeleteChoreHistory()
 
-  const choreHistory = choreHistoryData?.res || []
-  const performers = circleMembersData?.res || []
+  const choreHistory = useMemo(
+    () => choreHistoryData?.res || [],
+    [choreHistoryData],
+  )
+  const performers = useMemo(
+    () => circleMembersData?.res || [],
+    [circleMembersData],
+  )
 
   const handleDelete = historyEntry => {
     showConfirmation(

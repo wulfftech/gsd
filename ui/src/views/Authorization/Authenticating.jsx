@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, Container, Typography } from '@mui/joy'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Logo from '../../Logo'
 
 import { Capacitor } from '@capacitor/core'
@@ -18,16 +18,7 @@ const AuthenticationLoading = () => {
   const [subMessage, setSubMessage] = useState('Please wait')
   const [status, setStatus] = useState('pending')
   const { provider } = useParams()
-  useEffect(() => {
-    if (provider === 'oauth2' && !hasCalledHandleOAuth2.current) {
-      hasCalledHandleOAuth2.current = true
-      handleOAuth2()
-    } else if (provider !== 'oauth2') {
-      setMessage('Unknown Authentication Provider')
-      setSubMessage('Please contact support')
-    }
-  }, [provider])
-  const getUserProfileAndNavigateToHome = () => {
+  const getUserProfileAndNavigateToHome = useCallback(() => {
     GetUserProfile().then(data => {
       data.json().then(() => {
         refetchUserProfile().then(() => {
@@ -42,8 +33,8 @@ const AuthenticationLoading = () => {
         })
       })
     })
-  }
-  const handleOAuth2 = async () => {
+  }, [Navigate, refetchUserProfile])
+  const handleOAuth2 = useCallback(async () => {
     // get provider from params:
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
@@ -96,7 +87,17 @@ const AuthenticationLoading = () => {
         }
       })
     }
-  }
+  }, [Navigate, getUserProfileAndNavigateToHome])
+
+  useEffect(() => {
+    if (provider === 'oauth2' && !hasCalledHandleOAuth2.current) {
+      hasCalledHandleOAuth2.current = true
+      handleOAuth2()
+    } else if (provider !== 'oauth2') {
+      setMessage('Unknown Authentication Provider')
+      setSubMessage('Please contact support')
+    }
+  }, [provider, handleOAuth2])
 
   return (
     <Container className='flex h-full items-center justify-center'>

@@ -65,7 +65,7 @@ const ThingTriggerSection = ({
       setCondition(selected.condition)
       setTriggerState(selected.triggerState)
     }
-  }, [things])
+  }, [things, selected])
 
   useEffect(() => {
     if (selectedThing && triggerState) {
@@ -80,7 +80,7 @@ const ThingTriggerSection = ({
     } else {
       onValidate(false)
     }
-  }, [selectedThing, condition, triggerState])
+  }, [selectedThing, condition, triggerState, onTriggerUpdate, onValidate])
 
   return (
     <Card sx={{ mt: 1 }}>

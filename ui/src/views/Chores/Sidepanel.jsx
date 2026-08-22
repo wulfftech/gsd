@@ -25,7 +25,7 @@ const Sidepanel = ({
   useEffect(() => {
     setDueDatePieChartData(generateChoreDuePieChartData(chores))
     setSidepanelConfig(getSidepanelConfig())
-  }, [])
+  }, [chores])
 
   useEffect(() => {
     const handleConfigChange = () => {

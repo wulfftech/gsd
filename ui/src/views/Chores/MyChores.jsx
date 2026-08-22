@@ -329,12 +329,29 @@ const MyChores = () => {
     }
   }, [processedSections])
 
+  const handleFilterMenuClose = useCallback(() => {
+    setAnchorEl(null)
+  }, [])
+
+  const handleMenuOutsideClick = useCallback(
+    event => {
+      if (
+        anchorEl &&
+        !anchorEl.contains(event.target) &&
+        !menuRef.current.contains(event.target)
+      ) {
+        handleFilterMenuClose()
+      }
+    },
+    [anchorEl, handleFilterMenuClose],
+  )
+
   useEffect(() => {
     document.addEventListener('mousedown', handleMenuOutsideClick)
     return () => {
       document.removeEventListener('mousedown', handleMenuOutsideClick)
     }
-  }, [anchorEl])
+  }, [handleMenuOutsideClick])
 
   useEffect(() => {
     if (searchInputFocus > 0 && searchInputRef.current) {
@@ -358,12 +375,6 @@ const MyChores = () => {
       }
     }
   }, [
-    searchParams,
-    projects,
-    projectsWithDefault,
-    selectedProject,
-    setSelectedProjectWithCache,
-
     searchParams,
     projects,
     projectsWithDefault,
@@ -437,6 +448,7 @@ const MyChores = () => {
     chores,
     searchFilter,
     activeFilterId,
+    tempFilterMeta?.id,
     savedFilters,
     applyCustomFilter,
     applyTempFilter,
@@ -476,7 +488,7 @@ const MyChores = () => {
         { replace: true },
       )
     }
-  }, [tempFilterMeta?.id, searchParams])
+  }, [tempFilterMeta?.id, searchParams, Navigate])
 
   const {
     handleChoreAction,
@@ -546,22 +558,9 @@ const MyChores = () => {
     },
   })
 
-  const handleMenuOutsideClick = event => {
-    if (
-      anchorEl &&
-      !anchorEl.contains(event.target) &&
-      !menuRef.current.contains(event.target)
-    ) {
-      handleFilterMenuClose()
-    }
-  }
   const handleFilterMenuOpen = event => {
     event.preventDefault()
     setAnchorEl(event.currentTarget)
-  }
-
-  const handleFilterMenuClose = () => {
-    setAnchorEl(null)
   }
 
   const handleLabelFiltering = chipClicked => {

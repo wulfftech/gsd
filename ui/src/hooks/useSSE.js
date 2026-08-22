@@ -644,7 +644,7 @@ export const useSSE = () => {
     return () => {
       disconnect()
     }
-  }, [isAuthenticated]) // Fixed: Added isAuthenticated dependency
+  }, [isAuthenticated, connect, disconnect])
 
   // Cleanup timeouts on unmount
   useEffect(() => {
