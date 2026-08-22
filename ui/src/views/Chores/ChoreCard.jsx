@@ -87,18 +87,30 @@ const ChoreCard = ({
   }
   return (
     <Box key={chore.id + '-box'} minWidth={'100%'}>
-      <Chip
-        variant='soft'
+      <Box
         sx={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: 0.5,
           position: 'relative',
           top: 10,
           zIndex: 3,
           left: 10,
         }}
-        color={getDueDateChipColor(chore.nextDueDate, chore)}
       >
-        {getDueDateChipText(chore.nextDueDate, chore, timeFormat)}
-      </Chip>
+        {notInCompletionWindow(chore) && (
+          <Chip variant='soft' color='primary'>
+            Pending
+          </Chip>
+        )}
+        <Chip
+          variant='soft'
+          color={getDueDateChipColor(chore.nextDueDate, chore)}
+        >
+          {getDueDateChipText(chore.nextDueDate, chore, timeFormat)}
+        </Chip>
+      </Box>
 
       <Chip
         variant='soft'

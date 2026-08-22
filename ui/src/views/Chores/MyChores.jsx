@@ -8,9 +8,12 @@ import {
   EditCalendar,
   ExpandCircleDown,
   Grain,
+  Group,
   PriorityHigh,
   Sort,
   Style,
+  Visibility,
+  VisibilityOff,
   ViewAgenda,
   ViewModule,
 } from '@mui/icons-material'
@@ -27,6 +30,8 @@ import {
   List,
   Menu,
   MenuItem,
+  Option,
+  Select,
   Typography,
 } from '@mui/joy'
 import Fuse from 'fuse.js'
@@ -44,20 +49,26 @@ import { useMediaQuery } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
 import { useImpersonateUser } from '../../contexts/ImpersonateUserContext.jsx'
+import useStickyState from '../../hooks/useStickyState'
+import Logo from '../../Logo'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import {
   ChoreFilters,
   ChoresGrouper,
   ChoreSorter,
   filterByProject,
+  GENERAL_TASKS_LABEL,
+  notInCompletionWindow,
 } from '../../utils/Chores'
 import { getSafeBottom } from '../../utils/SafeAreaUtils.js'
+import { isChildUser } from '../../utils/UserHelpers.js'
 import TaskInput from '../components/AddTaskModal'
 import CalendarDual from '../components/CalendarDual'
 import CalendarMonthly from '../components/CalendarMonthly.jsx'
 import ProjectSelector from '../components/ProjectSelector'
 import AdvancedFilterBuilder from '../Modals/Inputs/AdvancedFilterBuilder'
 import { useProjects } from '../Projects/ProjectQueries.js'
+import ChoreViewModal from '../ChoreEdit/ChoreViewModal'
 import ChoreListView from './ChoreListView.jsx'
 import ChoreModals from './components/ChoreModals'
 import FilterSection from './components/FilterSection'
@@ -88,7 +99,7 @@ const MyChores = () => {
   const queryClient = useQueryClient()
   const { impersonatedUser } = useImpersonateUser()
   const Navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: userLabels, isLoading: userLabelsLoading } = useLabels()
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const {
@@ -129,6 +140,24 @@ const MyChores = () => {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date())
   const menuRef = useRef(null)
   const [confirmModelConfig, setConfirmModelConfig] = useState({})
+
+  // The chore currently open in ChoreViewModal. Shape is `{ id, name? }` -
+  // `name` is only a zero-flicker title hint and is often absent (e.g. when
+  // opened via the openChore deep-link param before the list has loaded).
+  const [openedChore, setOpenedChore] = useState(null)
+
+  // Hide chores that aren't in their completion window yet ("pending"). Hidden
+  // by default on a fresh install; persisted across reloads.
+  const [hidePendingChores, setHidePendingChores] = useStickyState(
+    true,
+    'hidePendingChores',
+  )
+
+  // Assignee filter. `null` is the "not yet chosen" sentinel so we can tell
+  // an untouched default apart from an explicit choice of "everyone" - see
+  // effectiveAssigneeFilter below.
+  const [choreAssigneeFilterStored, setChoreAssigneeFilterStored] =
+    useStickyState(null, 'choreAssigneeFilter')
 
   const { selectedProject, projectsWithDefault, setSelectedProjectWithCache } =
     useProjectFilter(projects)
@@ -193,6 +222,16 @@ const MyChores = () => {
     useState(false)
   const [editingFilter, setEditingFilter] = useState(null)
 
+  // Resolve the assignee filter's default at read time: if the user hasn't
+  // explicitly chosen anything yet (sentinel null), child accounts default to
+  // themselves, everyone else defaults to "everyone".
+  const effectiveAssigneeFilter = useMemo(() => {
+    if (choreAssigneeFilterStored !== null) {
+      return choreAssigneeFilterStored
+    }
+    return isChildUser(userProfile) ? userProfile?.id : 'everyone'
+  }, [choreAssigneeFilterStored, userProfile])
+
   const processedChores = useMemo(() => {
     if (!choresData?.res) {
       return []
@@ -212,7 +251,9 @@ const MyChores = () => {
     return sortedChores
   }, [choresData?.res, impersonatedUser])
 
-  const processedSections = useMemo(() => {
+  // Chores to group, before the pending-hiding and assignee filters are
+  // applied (project/search/custom-filter narrowing only).
+  const baseSectionChores = useMemo(() => {
     if (!chores.length || !userProfile?.id) {
       return []
     }
@@ -233,6 +274,47 @@ const MyChores = () => {
       choresToGroup = filterByProject(chores, selectedProject.id)
     }
 
+    return choresToGroup
+  }, [
+    chores,
+    filteredChores,
+    customFilteredChores,
+    tempFilter,
+    activeFilterId,
+    searchFilter,
+    selectedProject,
+    userProfile?.id,
+  ])
+
+  // Apply the assignee filter before grouping so section counts stay accurate.
+  const assigneeFilteredSectionChores = useMemo(() => {
+    if (effectiveAssigneeFilter === 'everyone') {
+      return baseSectionChores
+    }
+    return baseSectionChores.filter(
+      chore => chore.assignedTo === effectiveAssigneeFilter,
+    )
+  }, [baseSectionChores, effectiveAssigneeFilter])
+
+  // Count of "pending" (not-yet-startable) chores that hidePendingChores would
+  // hide, independent of the toggle's current state, so the toggle's label
+  // can stay accurate even while it's off.
+  const hiddenPendingCount = useMemo(
+    () => assigneeFilteredSectionChores.filter(notInCompletionWindow).length,
+    [assigneeFilteredSectionChores],
+  )
+
+  const processedSections = useMemo(() => {
+    if (!assigneeFilteredSectionChores.length) {
+      return []
+    }
+
+    const choresToGroup = hidePendingChores
+      ? assigneeFilteredSectionChores.filter(
+          chore => !notInCompletionWindow(chore),
+        )
+      : assigneeFilteredSectionChores
+
     const sections = ChoresGrouper(
       selectedChoreSection,
       choresToGroup,
@@ -243,15 +325,10 @@ const MyChores = () => {
 
     return sections
   }, [
-    chores,
-    filteredChores,
-    customFilteredChores,
-    tempFilter,
-    activeFilterId,
-    searchFilter,
+    assigneeFilteredSectionChores,
+    hidePendingChores,
     selectedChoreSection,
     selectedChoreFilter,
-    selectedProject,
     impersonatedUser?.userId,
     userProfile?.id,
   ])
@@ -371,6 +448,24 @@ const MyChores = () => {
     selectedProject,
     setSelectedProjectWithCache,
   ])
+
+  // Open the chore-detail modal from a deep-linked ?openChore= param (see
+  // ChoreDeepLinkRedirect in RouterContext.jsx, which is where old/pushed
+  // /chores/:choreId links land now that the detail page is a modal). The
+  // chore doesn't need to be in `chores` yet - ChoreViewModal fetches its own
+  // data by id - so this doesn't wait on the list being loaded. The param is
+  // cleared immediately after opening so closing the modal doesn't reopen it
+  // and a page refresh doesn't resurrect it.
+  useEffect(() => {
+    const openChoreId = searchParams.get('openChore')
+    if (!openChoreId) return
+
+    setOpenedChore({ id: openChoreId })
+
+    const params = new URLSearchParams(searchParams)
+    params.delete('openChore')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // Read and apply filters from URL parameters
   useEffect(() => {
@@ -699,6 +794,89 @@ const MyChores = () => {
     }
   }
 
+  // Renders a single section accordion. Shared between the time-based column
+  // and the General Tasks column so both stay in sync with the exact same
+  // markup/behavior - `index` is the section's index in the full
+  // (unsplit) choreSections array, since openChoreSections is keyed by that
+  // original index.
+  const renderChoreSectionAccordion = (section, index) => {
+    if (section.content.length === 0) return null
+    return (
+      <Accordion
+        key={section.name + index}
+        sx={{
+          my: 0,
+          px: 0,
+        }}
+        expanded={Boolean(openChoreSections[index])}
+      >
+        <Divider orientation='horizontal'>
+          <Chip
+            variant='soft'
+            color='neutral'
+            size='md'
+            onClick={() => {
+              if (openChoreSections[index]) {
+                const newOpenChoreSections = {
+                  ...openChoreSections,
+                }
+                delete newOpenChoreSections[index]
+                setOpenChoreSectionsWithCache(newOpenChoreSections)
+              } else {
+                setOpenChoreSectionsWithCache({
+                  ...openChoreSections,
+                  [index]: true,
+                })
+              }
+            }}
+            endDecorator={
+              openChoreSections[index] ? (
+                <ExpandCircleDown
+                  color='primary'
+                  sx={{ transform: 'rotate(180deg)' }}
+                />
+              ) : (
+                <ExpandCircleDown color='primary' />
+              )
+            }
+            startDecorator={
+              <>
+                <Chip color='primary' size='sm' variant='soft'>
+                  {section?.content?.length}
+                </Chip>
+              </>
+            }
+          >
+            {section.name}
+          </Chip>
+        </Divider>
+        <AccordionDetails
+          sx={{
+            flexDirection: 'column',
+            ['& > *']: {
+              // px: 0.5,
+              px: 0.5,
+              // pr: 0,
+            },
+          }}
+        >
+          <ChoreListView
+            chores={section.content}
+            viewMode={viewMode}
+            membersData={membersData}
+            userLabels={userLabels}
+            handleLabelFiltering={handleLabelFiltering}
+            handleChoreAction={handleChoreAction}
+            isMultiSelectMode={isMultiSelectMode}
+            selectedChores={selectedChores}
+            toggleChoreSelection={toggleChoreSelection}
+            onChoreOpen={setOpenedChore}
+          />
+        </AccordionDetails>
+      </Accordion>
+    )
+  }
+
   // const renderChoreCard = (chore, key) => {
   //   const CardComponent = viewMode === 'compact' ? CompactChoreCard : ChoreCard
   //   return (
@@ -892,10 +1070,12 @@ const MyChores = () => {
         <Box
           sx={{
             display: 'flex',
+            flexWrap: 'wrap',
             justifyContent: 'space-between',
             alignContent: 'center',
             alignItems: 'center',
             gap: 0.5,
+            rowGap: 1,
           }}
         >
           <SearchBar
@@ -932,6 +1112,73 @@ const MyChores = () => {
             }}
             mouseClickHandler={handleMenuOutsideClick}
           />
+
+          {/* Assignee Filter */}
+          <Select
+            size='sm'
+            value={effectiveAssigneeFilter}
+            onChange={(_event, newValue) => {
+              setChoreAssigneeFilterStored(newValue ?? 'everyone')
+            }}
+            startDecorator={<Group sx={{ fontSize: 16 }} />}
+            title='Filter by assignee'
+            sx={{
+              height: 32,
+              borderRadius: 24,
+              minWidth: 0,
+              maxWidth: 160,
+            }}
+          >
+            <Option value='everyone'>Everyone</Option>
+            {membersData?.res?.map(member => (
+              <Option key={member.userId} value={member.userId}>
+                {member.displayName}
+              </Option>
+            ))}
+          </Select>
+
+          {/* Hide Pending Tasks Toggle */}
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <IconButton
+              variant={hidePendingChores ? 'solid' : 'outlined'}
+              color={hidePendingChores ? 'primary' : 'neutral'}
+              size='sm'
+              sx={{
+                height: 32,
+                width: 32,
+                borderRadius: '50%',
+              }}
+              onClick={() => setHidePendingChores(!hidePendingChores)}
+              title={
+                hidePendingChores
+                  ? `Pending tasks hidden${hiddenPendingCount > 0 ? ` (${hiddenPendingCount})` : ''} — click to show`
+                  : 'Showing pending tasks — click to hide'
+              }
+            >
+              {hidePendingChores ? <VisibilityOff /> : <Visibility />}
+            </IconButton>
+            {hidePendingChores && hiddenPendingCount > 0 && (
+              <Chip
+                size='sm'
+                color='warning'
+                variant='solid'
+                sx={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -6,
+                  height: 16,
+                  minHeight: 16,
+                  fontSize: 10,
+                  px: 0.5,
+                  borderRadius: '50%',
+                  zIndex: 1000,
+                  pointerEvents: 'none',
+                }}
+              >
+                {hiddenPendingCount}
+              </Chip>
+            )}
+          </Box>
 
           {/* Project Selector - Hidden when active filter has project conditions */}
           {projectsWithDefault.length > 1 &&
@@ -1007,6 +1254,27 @@ const MyChores = () => {
             />
           </Box>
         </Box>
+
+        {/* Hidden pending tasks notice - keeps an empty-looking list explained */}
+        {hidePendingChores && hiddenPendingCount > 0 && (
+          <Typography level='body-xs' sx={{ color: 'text.tertiary', mt: 0.5 }}>
+            {hiddenPendingCount} pending task
+            {hiddenPendingCount === 1 ? '' : 's'} hidden until they can be
+            started —{' '}
+            <Typography
+              component='span'
+              level='body-xs'
+              onClick={() => setHidePendingChores(false)}
+              sx={{
+                color: 'primary.500',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+            >
+              show
+            </Typography>
+          </Typography>
+        )}
 
         {/* Search Filter with animation */}
         <Box
@@ -1308,6 +1576,7 @@ const MyChores = () => {
               isMultiSelectMode={isMultiSelectMode}
               selectedChores={selectedChores}
               toggleChoreSelection={toggleChoreSelection}
+              onChoreOpen={setOpenedChore}
             />
           )}
         {viewMode === 'calendar' && (
@@ -1485,6 +1754,7 @@ const MyChores = () => {
                       isMultiSelectMode={isMultiSelectMode}
                       selectedChores={selectedChores}
                       toggleChoreSelection={toggleChoreSelection}
+                      onChoreOpen={setOpenedChore}
                     />
                   )}
                 </Box>
@@ -1493,86 +1763,61 @@ const MyChores = () => {
           </>
         )}
         {searchTerm.length === 0 &&
-          viewMode !== 'calendar' && (
-            <AccordionGroup transition='0.2s ease' disableDivider>
-              {choreSections.map((section, index) => {
-                if (section.content.length === 0) return null
-                return (
-                  <Accordion
-                    key={section.name + index}
+          viewMode !== 'calendar' &&
+          (() => {
+            // Split sections into the time-based stack and the General Tasks
+            // section, keeping each section's original index (openChoreSections
+            // is keyed by index into the full, unsplit array).
+            const generalTasksIndex = choreSections.findIndex(
+              section => section.name === GENERAL_TASKS_LABEL,
+            )
+            const hasGeneralTasks =
+              generalTasksIndex !== -1 &&
+              choreSections[generalTasksIndex].content.length > 0
+
+            return (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: 'flex-start',
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: '100%',
+                    minWidth: 0,
+                    flex: hasGeneralTasks ? { md: '2 1 0%' } : '1 1 auto',
+                  }}
+                >
+                  <AccordionGroup transition='0.2s ease' disableDivider>
+                    {choreSections.map((section, index) => {
+                      if (index === generalTasksIndex) return null
+                      return renderChoreSectionAccordion(section, index)
+                    })}
+                  </AccordionGroup>
+                </Box>
+
+                {hasGeneralTasks && (
+                  <Box
                     sx={{
-                      my: 0,
-                      px: 0,
+                      width: '100%',
+                      minWidth: 0,
+                      flex: { md: '1 1 0%' },
                     }}
-                    expanded={Boolean(openChoreSections[index])}
                   >
-                    <Divider orientation='horizontal'>
-                      <Chip
-                        variant='soft'
-                        color='neutral'
-                        size='md'
-                        onClick={() => {
-                          if (openChoreSections[index]) {
-                            const newOpenChoreSections = {
-                              ...openChoreSections,
-                            }
-                            delete newOpenChoreSections[index]
-                            setOpenChoreSectionsWithCache(newOpenChoreSections)
-                          } else {
-                            setOpenChoreSectionsWithCache({
-                              ...openChoreSections,
-                              [index]: true,
-                            })
-                          }
-                        }}
-                        endDecorator={
-                          openChoreSections[index] ? (
-                            <ExpandCircleDown
-                              color='primary'
-                              sx={{ transform: 'rotate(180deg)' }}
-                            />
-                          ) : (
-                            <ExpandCircleDown color='primary' />
-                          )
-                        }
-                        startDecorator={
-                          <>
-                            <Chip color='primary' size='sm' variant='soft'>
-                              {section?.content?.length}
-                            </Chip>
-                          </>
-                        }
-                      >
-                        {section.name}
-                      </Chip>
-                    </Divider>
-                    <AccordionDetails
-                      sx={{
-                        flexDirection: 'column',
-                        ['& > *']: {
-                          // px: 0.5,
-                          px: 0.5,
-                          // pr: 0,
-                        },
-                      }}
-                    >
-                      <ChoreListView
-                        chores={section.content}
-                        viewMode={viewMode}
-                        membersData={membersData}
-                        userLabels={userLabels}
-                        handleLabelFiltering={handleLabelFiltering}
-                        handleChoreAction={handleChoreAction}
-                        isMultiSelectMode={isMultiSelectMode}
-                        selectedChores={selectedChores}
-                        toggleChoreSelection={toggleChoreSelection}
-                      />
-                    </AccordionDetails>
-                  </Accordion>
-                )
-              })}
-            </AccordionGroup>
-          )}
+                    <AccordionGroup transition='0.2s ease' disableDivider>
+                      {renderChoreSectionAccordion(
+                        choreSections[generalTasksIndex],
+                        generalTasksIndex,
+                      )}
+                    </AccordionGroup>
+                  </Box>
+                )}
+              </Box>
+            )
+          })()}
         <Box
           sx={{
             // center the button
@@ -1690,6 +1935,13 @@ const MyChores = () => {
         onCompleteWithNote={handleCompleteWithNote}
         onNudge={handleNudge}
         onClose={closeModal}
+      />
+
+      <ChoreViewModal
+        choreId={openedChore?.id}
+        choreName={openedChore?.name}
+        open={Boolean(openedChore)}
+        onClose={() => setOpenedChore(null)}
       />
 
       {/* Advanced Filter Builder */}

@@ -384,21 +384,44 @@ const CompactChoreCard = ({
             {chore.name}
           </Typography>
 
-          {/* Due Date - Inline with name */}
-          <Chip
-            variant='soft'
-            size='sm'
-            color={getDueDateChipColor(chore.nextDueDate, chore)}
+          {/* Due Date (+ Pending, if applicable) - Inline with name */}
+          <Box
             sx={{
-              fontSize: 10,
-              height: 18,
-              px: 0.75,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: 0.25,
               flexShrink: 0,
               ml: 1,
             }}
           >
-            {getDueDateChipText(chore.nextDueDate, chore, timeFormat)}
-          </Chip>
+            {notInCompletionWindow(chore) && (
+              <Chip
+                variant='soft'
+                size='sm'
+                color='primary'
+                sx={{
+                  fontSize: 10,
+                  height: 18,
+                  px: 0.75,
+                }}
+              >
+                Pending
+              </Chip>
+            )}
+            <Chip
+              variant='soft'
+              size='sm'
+              color={getDueDateChipColor(chore.nextDueDate, chore)}
+              sx={{
+                fontSize: 10,
+                height: 18,
+                px: 0.75,
+              }}
+            >
+              {getDueDateChipText(chore.nextDueDate, chore, timeFormat)}
+            </Chip>
+          </Box>
         </Box>
 
         {/* Line 2: Metadata */}

@@ -10,14 +10,18 @@ import Settings from '@/views/Settings/Settings'
 import SettingsOverview from '@/views/Settings/SettingsOverview'
 import SettingsRoutes from '@/views/Settings/SettingsRoutes'
 import ThemeSettings from '@/views/Settings/ThemeSettings'
-import { RouterProvider, createBrowserRouter } from 'react-router-dom'
+import {
+  Navigate,
+  RouterProvider,
+  createBrowserRouter,
+  useParams,
+} from 'react-router-dom'
 import AuthenticationLoading from '../views/Authorization/Authenticating'
 import ForgotPasswordView from '../views/Authorization/ForgotPasswordView'
 import LoginSettings from '../views/Authorization/LoginSettings'
 import LoginView from '../views/Authorization/LoginView'
 import SignupView from '../views/Authorization/Signup'
 import UpdatePasswordView from '../views/Authorization/UpdatePasswordView'
-import ChoreView from '../views/ChoreEdit/ChoreView'
 import ArchivedTasks from '../views/Chores/ArchivedTasks'
 import MyChores from '../views/Chores/MyChores'
 import JoinCircleView from '../views/Circles/JoinCircle'
@@ -55,6 +59,16 @@ const getMainRoute = () => {
   }
   return <MyChores />
 }
+
+// The chore detail page is now a modal rendered from /chores. This redirects
+// old/deep-linked /chores/:choreId URLs (e.g. from push notifications - see
+// CapacitorListener.js) to /chores with an openChore search param that
+// MyChores reads on mount to open the modal for that chore.
+const ChoreDeepLinkRedirect = () => {
+  const { choreId } = useParams()
+  return <Navigate to={`/chores?openChore=${choreId}`} replace />
+}
+
 const Router = createBrowserRouter([
   {
     path: '/',
@@ -145,7 +159,7 @@ const Router = createBrowserRouter([
       },
       {
         path: '/chores/:choreId',
-        element: <ChoreView />,
+        element: <ChoreDeepLinkRedirect />,
       },
       {
         path: '/chores/create',

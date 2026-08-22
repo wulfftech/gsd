@@ -35,6 +35,7 @@ const ChoreListView = ({
   isOfficialInstance,
   toggleMultiSelectMode,
   showActions = true,
+  onChoreOpen,
 }) => {
   const navigate = useNavigate()
   const renderChoreCard = (chore, key) => {
@@ -254,6 +255,8 @@ const ChoreListView = ({
             onClick={() => {
               if (isMultiSelectMode) {
                 toggleChoreSelection(chore.id)
+              } else if (onChoreOpen) {
+                onChoreOpen(chore)
               } else {
                 navigate(`/chores/${chore.id}`)
               }

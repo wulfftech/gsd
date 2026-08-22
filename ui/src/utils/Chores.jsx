@@ -25,6 +25,11 @@ export const ChoreStatus = Object.freeze({
   PAUSED: 2,
   PENDING_APPROVAL: 3,
 })
+
+// Display label for chores with no due date (chore.nextDueDate === null).
+// Kept as a named export so consumers (e.g. MyChores.jsx) can identify this
+// section by name without hardcoding the string in multiple places.
+export const GENERAL_TASKS_LABEL = 'General Tasks'
 export const ChoresGrouper = (groupBy, chores, filter) => {
   if (filter) {
     chores = chores.filter(chore => filter(chore))
@@ -45,7 +50,7 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
         'Later This Month': [],
         Future: [],
         Overdue: [],
-        Anytime: [],
+        [GENERAL_TASKS_LABEL]: [],
       }
       chores.forEach(chore => {
         if (chore.status === 1 || chore.status === 2) {
@@ -53,7 +58,7 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
         } else if (chore.status === 3) {
           groupRaw['PendingApproval'].push(chore)
         } else if (chore.nextDueDate === null) {
-          groupRaw['Anytime'].push(chore)
+          groupRaw[GENERAL_TASKS_LABEL].push(chore)
         } else if (new Date(chore.nextDueDate) < new Date()) {
           groupRaw['Overdue'].push(chore)
         } else if (
@@ -139,10 +144,10 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
           color: TASK_COLOR.FUTURE,
         })
       }
-      if (groupRaw['Anytime'].length > 0) {
+      if (groupRaw[GENERAL_TASKS_LABEL].length > 0) {
         groups.push({
-          name: 'Anytime',
-          content: groupRaw['Anytime'],
+          name: GENERAL_TASKS_LABEL,
+          content: groupRaw[GENERAL_TASKS_LABEL],
           color: TASK_COLOR.ANYTIME,
         })
       }
@@ -156,11 +161,11 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
         'Later This Month': [],
         Future: [],
         Overdue: [],
-        Anytime: [],
+        [GENERAL_TASKS_LABEL]: [],
       }
       chores.forEach(chore => {
         if (chore.nextDueDate === null) {
-          groupRaw['Anytime'].push(chore)
+          groupRaw[GENERAL_TASKS_LABEL].push(chore)
         } else if (new Date(chore.nextDueDate) < new Date()) {
           groupRaw['Overdue'].push(chore)
         } else if (
@@ -217,8 +222,8 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
           color: TASK_COLOR.FUTURE,
         },
         {
-          name: 'Anytime',
-          content: groupRaw['Anytime'],
+          name: GENERAL_TASKS_LABEL,
+          content: groupRaw[GENERAL_TASKS_LABEL],
           color: TASK_COLOR.ANYTIME,
         },
       ]
