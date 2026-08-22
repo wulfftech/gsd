@@ -11,6 +11,8 @@ import {
   ListAlt,
   Logout,
   MenuRounded,
+  PushPin,
+  PushPinOutlined,
   SettingsOutlined,
   Toll,
   Widgets,
@@ -25,8 +27,10 @@ import {
   ListItemButton,
   ListItemContent,
   ListItemDecorator,
+  Sheet,
   Typography,
 } from '@mui/joy'
+import { useMediaQuery } from '@mui/material'
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +40,7 @@ import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { version } from '../../../package.json'
 import UserProfileAvatar from '../../components/UserProfileAvatar'
 import { useLocalization } from '../../contexts/LocalizationContext'
+import useStickyState from '../../hooks/useStickyState'
 import NavBarLink from './NavBarLink'
 
 import { SafeArea } from 'capacitor-plugin-safe-area'
@@ -44,6 +49,110 @@ import { useResource } from '../../queries/ResourceQueries'
 import { apiClient } from '../../utils/ApiClient'
 
 const publicPages = ['/landing', '/privacy', '/terms']
+
+// Matches Joy Drawer's 'sm' horizontal size so the pinned sidebar lines up
+// visually with the overlay drawer it replaces.
+const PINNED_DRAWER_WIDTH = 256
+
+// Nav links + logout/version footer, shared between the overlay Drawer
+// (mobile / unpinned) and the persistent sidebar (pinned + md-and-up), so the
+// list markup isn't duplicated between the two render paths.
+const NavContent = ({
+  links,
+  t,
+  version,
+  resource,
+  showPinControl,
+  navPinned,
+  onTogglePin,
+  onItemClick,
+  onLogout,
+}) => (
+  <>
+    {showPinControl && (
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1, pt: 1 }}>
+        <IconButton
+          size='sm'
+          variant='plain'
+          aria-label={
+            navPinned
+              ? t('navigation.unpinMenu', 'Unpin menu')
+              : t('navigation.pinMenu', 'Pin menu')
+          }
+          onClick={onTogglePin}
+        >
+          {navPinned ? (
+            <PushPin fontSize='small' />
+          ) : (
+            <PushPinOutlined fontSize='small' />
+          )}
+        </IconButton>
+      </Box>
+    )}
+    <div>
+      <List
+        size='md'
+        onClick={onItemClick}
+        sx={{
+          borderRadius: 4,
+          width: '100%',
+          padding: 1,
+          paddingTop:
+            Capacitor.getPlatform() === 'android'
+              ? `calc(var(--safe-area-inset-top, 0px))`
+              : '',
+        }}
+      >
+        {links.map((link, index) => (
+          <NavBarLink key={index} link={link} />
+        ))}
+      </List>
+    </div>
+    <div>
+      <List
+        sx={{
+          p: 2,
+          height: 'min-content',
+          position: 'absolute',
+          bottom: 0,
+          borderRadius: 4,
+          width: '100%',
+          padding: 2,
+        }}
+        size='md'
+        onClick={onItemClick}
+      >
+        <ListItemButton
+          onClick={onLogout}
+          sx={{
+            py: 1.2,
+          }}
+        >
+          <ListItemDecorator>
+            <Logout />
+          </ListItemDecorator>
+          <ListItemContent>{t('logout')}</ListItemContent>
+        </ListItemButton>
+        <Typography
+          onClick={
+            // force service worker to update:
+            () => window.location.reload(true)
+          }
+          level='body-xs'
+          sx={{
+            p: 1,
+            color: 'text.tertiary',
+            textAlign: 'center',
+            mb: 'calc(var(--safe-area-inset-bottom, 0px) )',
+          }}
+        >
+          V{version} (API: {resource?.api_version || 'unavailable'})
+        </Typography>
+      </List>
+    </div>
+  </>
+)
+
 const NavBar = () => {
   const { t } = useTranslation('common')
   const { isRTL } = useLocalization()
@@ -52,6 +161,12 @@ const NavBar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const isWideViewport = useMediaQuery(theme => theme.breakpoints.up('md'))
+  const [navPinned, setNavPinned] = useStickyState(true, 'navDrawerPinned')
+  // Persistent sidebar only makes sense once pinned AND there's room for it;
+  // narrow viewports always fall back to the overlay drawer regardless of
+  // the pin setting.
+  const isPersistent = navPinned && isWideViewport
 
   // Pending-approval alert for admins — only query when authenticated
   const { data: userProfile } = useUserProfile()
@@ -132,6 +247,12 @@ const NavBar = () => {
     () => setDrawerOpen(true),
     () => setDrawerOpen(false),
   ]
+  const handleTogglePin = e => {
+    // Stop this from bubbling to the Drawer's own onClick={closeDrawer} in
+    // overlay mode, which would close the menu right after toggling pin.
+    e.stopPropagation()
+    setNavPinned(prev => !prev)
+  }
   const [searchParams] = useSearchParams()
   useEffect(() => {
     SafeArea.getSafeAreaInsets().then(data => {
@@ -146,9 +267,50 @@ const NavBar = () => {
     })
   }, [])
 
+  // When the sidebar is pinned+persistent, inset the app content so the
+  // sidebar doesn't sit on top of it. NavBar doesn't own the layout
+  // wrapper around <Outlet /> (see App.jsx), so this nudges the app root
+  // directly rather than reformatting that file's flow layout — the same
+  // imperative-style-on-a-shared-node approach the SafeArea effect above
+  // already uses in this component.
+  useEffect(() => {
+    const root = document.getElementById('root')
+    if (!root) {
+      return undefined
+    }
+    if (isPersistent) {
+      root.style[isRTL ? 'paddingRight' : 'paddingLeft'] =
+        `${PINNED_DRAWER_WIDTH}px`
+      root.style[isRTL ? 'paddingLeft' : 'paddingRight'] = ''
+    } else {
+      root.style.paddingLeft = ''
+      root.style.paddingRight = ''
+    }
+    return () => {
+      root.style.paddingLeft = ''
+      root.style.paddingRight = ''
+    }
+  }, [isPersistent, isRTL])
+
+  // Avoid a stray overlay drawer appearing (e.g. from an earlier hamburger
+  // click) once we switch into persistent sidebar mode.
+  useEffect(() => {
+    if (isPersistent) {
+      setDrawerOpen(false)
+    }
+  }, [isPersistent])
+
   const getMenuIcon = () => {
-    const menuRounded = (
-      <IconButton size='md' variant='plain' onClick={() => setDrawerOpen(true)}>
+    // With the sidebar pinned open there is nothing for the hamburger to do,
+    // so drop it rather than leaving a visible control that no-ops. Unpinning
+    // is done from the pin button inside the sidebar itself.
+    const menuRounded = isPersistent ? null : (
+      <IconButton
+        size='md'
+        variant='plain'
+        aria-label={t('navigation.openMenu', 'Open menu')}
+        onClick={() => setDrawerOpen(true)}
+      >
         <MenuRounded />
       </IconButton>
     )
@@ -247,108 +409,74 @@ const NavBar = () => {
         <UserProfileAvatar />
         {/* <ThemeToggleButton /> */}
       </Box>
-      <Drawer
-        open={drawerOpen}
-        onClose={closeDrawer}
-        anchor={isRTL ? 'right' : 'left'}
-        size='sm'
-        onClick={closeDrawer}
-        sx={{
-          '& .MuiDrawer-content': {
+      {isPersistent ? (
+        // Pinned + wide viewport: render the nav list as a persistent
+        // sidebar instead of the overlay Drawer. Joy's Drawer has no
+        // "permanent" variant, so this is a plain fixed-position Sheet with
+        // no backdrop and no onClick-to-close — links navigate without
+        // dismissing it.
+        <Sheet
+          variant='plain'
+          sx={{
             position: 'fixed',
-            // pt: 'calc(var(--safe-area-inset-top, 0px))',
+            top: 0,
             ...(isRTL ? { right: 0 } : { left: 0 }),
-            // pb: 'calc(var(--safe-area-inset-bottom, 0px))',
-            // height:
-            //   'calc(100vh - var(--safe-area-inset-top, 0px) - var(--safe-area-inset-bottom, 0px))',
+            height: '100%',
+            width: PINNED_DRAWER_WIDTH,
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'auto',
             zIndex: Z_INDEX.DRAWER,
-          },
-        }}
-      >
-        <div>
-          {/* <div className='align-center flex px-5 pt-4'>
-            <ModalClose size='sm' sx={{ top: 'unset', right: 20 }} />
-          </div> */}
-          <List
-            // sx={{ p: 2, height: 'min-content' }}
-
-            size='md'
-            onClick={openDrawer}
-            sx={{
-              borderRadius: 4,
-              width: '100%',
-              padding: 1,
-              paddingTop:
-                Capacitor.getPlatform() === 'android'
-                  ? `calc(var(--safe-area-inset-top, 0px))`
-                  : '',
-            }}
-          >
-            {links.map((link, index) => (
-              <NavBarLink key={index} link={link} />
-            ))}
-          </List>
-        </div>
-        <div>
-          <List
-            sx={{
-              p: 2,
-              height: 'min-content',
-              position: 'absolute',
-              bottom: 0,
-              borderRadius: 4,
-              width: '100%',
-              padding: 2,
-            }}
-            size='md'
-            onClick={openDrawer}
-          >
-            {/*  Add List item to invite the user to upgrade to Plus: */}
-            {/* <ListItemButton
-              onClick={() => navigate('/settings#subscription')}
-              sx={{
-                py: 1.2,
-              }}
-            >
-              <ListItemDecorator>
-                <SwitchAccessShortcutAdd />
-              </ListItemDecorator>
-              <ListItemContent>Upgrade to Plus</ListItemContent>
-            </ListItemButton> */}
-            <ListItemButton
-              onClick={() => {
-                apiClient.handleLogout()
-              }}
-              sx={{
-                py: 1.2,
-              }}
-            >
-              <ListItemDecorator>
-                <Logout />
-              </ListItemDecorator>
-              <ListItemContent>{t('logout')}</ListItemContent>
-            </ListItemButton>
-            <Typography
-              onClick={
-                // force service worker to update:
-                () => window.location.reload(true)
-              }
-              level='body-xs'
-              sx={{
-                // p: 2,
-                p: 1,
-                color: 'text.tertiary',
-                textAlign: 'center',
-                mb: 'calc(var(--safe-area-inset-bottom, 0px) )',
-                // mb: -2,
-              }}
-            >
-              V{version} (API: {resource?.api_version || 'unavailable'})
-            </Typography>
-          </List>
-        </div>
-      </Drawer>
+            backgroundColor: 'background.surface',
+            borderRight: isRTL ? 'none' : '1px solid',
+            borderLeft: isRTL ? '1px solid' : 'none',
+            borderColor: 'divider',
+          }}
+        >
+          <NavContent
+            links={links}
+            t={t}
+            version={version}
+            resource={resource}
+            showPinControl={isWideViewport}
+            navPinned={navPinned}
+            onTogglePin={handleTogglePin}
+            onLogout={() => apiClient.handleLogout()}
+          />
+        </Sheet>
+      ) : (
+        <Drawer
+          open={drawerOpen}
+          onClose={closeDrawer}
+          anchor={isRTL ? 'right' : 'left'}
+          size='sm'
+          onClick={closeDrawer}
+          sx={{
+            '& .MuiDrawer-content': {
+              position: 'fixed',
+              // pt: 'calc(var(--safe-area-inset-top, 0px))',
+              ...(isRTL ? { right: 0 } : { left: 0 }),
+              // pb: 'calc(var(--safe-area-inset-bottom, 0px))',
+              // height:
+              //   'calc(100vh - var(--safe-area-inset-top, 0px) - var(--safe-area-inset-bottom, 0px))',
+              overflow: 'auto',
+              zIndex: Z_INDEX.DRAWER,
+            },
+          }}
+        >
+          <NavContent
+            links={links}
+            t={t}
+            version={version}
+            resource={resource}
+            showPinControl={isWideViewport}
+            navPinned={navPinned}
+            onTogglePin={handleTogglePin}
+            onItemClick={openDrawer}
+            onLogout={() => apiClient.handleLogout()}
+          />
+        </Drawer>
+      )}
     </nav>
   )
 }
