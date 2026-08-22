@@ -856,7 +856,10 @@ const GetManagedUsers = () => {
 }
 
 // Update a managed account — all fields optional; only non-empty values applied.
-const UpdateManagedUser = (managedUserId, { username, displayName, password } = {}) => {
+const UpdateManagedUser = (
+  managedUserId,
+  { username, displayName, password } = {},
+) => {
   return Fetch(`/users/subaccounts/${managedUserId}`, {
     method: 'PUT',
     headers: HEADERS(),
@@ -1130,4 +1133,3 @@ export {
   GetRewardRedemptions,
   FulfillRedemption,
 }
-

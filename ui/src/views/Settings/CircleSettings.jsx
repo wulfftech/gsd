@@ -9,7 +9,7 @@ import {
   Input,
   Option,
   Select,
-  Typography
+  Typography,
 } from '@mui/joy'
 import { useQueryClient } from '@tanstack/react-query'
 import moment from 'moment'
@@ -227,8 +227,7 @@ const CircleSettings = () => {
                   </Typography>
                 ) : (
                   <Typography level='body-sm' color='danger'>
-                    Request to join{' '}
-                    {fmt.date(member.updatedAt)}
+                    Request to join {fmt.date(member.updatedAt)}
                   </Typography>
                 )}
               </Box>
@@ -329,7 +328,9 @@ const CircleSettings = () => {
                                   type: 'success',
                                   message: 'Removed member successfully',
                                 })
-                                queryClient.invalidateQueries(['allCircleMembers'])
+                                queryClient.invalidateQueries([
+                                  'allCircleMembers',
+                                ])
                                 queryClient.refetchQueries(['allCircleMembers'])
                                 setCircleMembers(prevMembers =>
                                   prevMembers.filter(

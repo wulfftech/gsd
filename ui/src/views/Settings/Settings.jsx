@@ -344,8 +344,7 @@ const Settings = () => {
                   </Typography>
                 ) : (
                   <Typography level='body-sm' color='danger'>
-                    Request to join{' '}
-                    {fmt.date(member.updatedAt)}
+                    Request to join {fmt.date(member.updatedAt)}
                   </Typography>
                 )}
               </Box>
@@ -447,7 +446,9 @@ const Settings = () => {
                                   message: 'Removed member successfully',
                                 })
                                 // Invalidate and refetch circle-related queries
-                                queryClient.invalidateQueries(['allCircleMembers'])
+                                queryClient.invalidateQueries([
+                                  'allCircleMembers',
+                                ])
                                 queryClient.refetchQueries(['allCircleMembers'])
                                 // Update local state immediately
                                 setCircleMembers(prevMembers =>

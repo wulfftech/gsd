@@ -35,14 +35,14 @@ const CalendarCard = ({ chores }) => {
     const tomorrow = new Date(now)
     tomorrow.setDate(tomorrow.getDate() + 1)
     tomorrow.setHours(0, 0, 0, 0) // Set to start of tomorrow
-    
+
     const msUntilTomorrow = tomorrow.getTime() - now.getTime()
 
     const timeout = setTimeout(() => {
       const today = new Date()
       const yesterday = new Date(today)
       yesterday.setDate(yesterday.getDate() - 1)
-      
+
       // Check if selected date is now yesterday and update to today
       if (selectedDate.toDateString() === yesterday.toDateString()) {
         setSeletedDate(today)
@@ -198,9 +198,7 @@ const CalendarCard = ({ chores }) => {
               width: '100%',
             }}
           >
-            <Typography level='title-md'>
-              {fmt.date(selectedDate)}
-            </Typography>
+            <Typography level='title-md'>{fmt.date(selectedDate)}</Typography>
             <Chip variant='soft' color='primary' size='md'>
               {(() => {
                 const count = chores.filter(chore => {

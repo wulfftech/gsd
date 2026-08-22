@@ -65,9 +65,9 @@ export default defineConfig({
         //Exclude API and Swagger routes from service worker navigation fallback
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [
-          /^\/api\//,     // Exclude all API routes
-          /^\/swagger/,   // Exclude all Swagger routes
-        ]
+          /^\/api\//, // Exclude all API routes
+          /^\/swagger/, // Exclude all Swagger routes
+        ],
       },
     }),
   ],

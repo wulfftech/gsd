@@ -1,13 +1,5 @@
 import { Person } from '@mui/icons-material'
-import {
-  Avatar,
-  Box,
-  Button,
-  Card,
-  Divider,
-  Stack,
-  Typography,
-} from '@mui/joy'
+import { Avatar, Box, Button, Card, Divider, Stack, Typography } from '@mui/joy'
 import { useState } from 'react'
 
 import { useResponsiveModal } from '../../hooks/useResponsiveModal.js'
@@ -72,7 +64,10 @@ function PerformerPickerModal({ config }) {
                       <Typography
                         component='span'
                         level='body-xs'
-                        sx={{ ml: 1, color: isSelected ? 'primary.100' : 'text.tertiary' }}
+                        sx={{
+                          ml: 1,
+                          color: isSelected ? 'primary.100' : 'text.tertiary',
+                        }}
                       >
                         (me)
                       </Typography>

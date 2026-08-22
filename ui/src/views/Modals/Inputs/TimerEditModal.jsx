@@ -59,7 +59,6 @@ const TimerEditModal = ({ isOpen, onClose, choreId, onTimerUpdate }) => {
     }
   }, [isOpen, timerData])
 
-
   const formatTime = seconds => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)

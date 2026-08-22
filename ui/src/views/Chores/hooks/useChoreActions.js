@@ -3,15 +3,15 @@ import { useCallback } from 'react'
 import { useArchiveChore } from '../../../queries/ChoreQueries'
 import { usePauseChore, useStartChore } from '../../../queries/TimeQueries'
 import {
-    ApproveChore,
-    DeleteChore,
-    MarkChoreComplete,
-    NudgeChore,
-    RejectChore,
-    SkipChore,
-    UndoChoreAction,
-    UpdateChoreAssignee,
-    UpdateDueDate,
+  ApproveChore,
+  DeleteChore,
+  MarkChoreComplete,
+  NudgeChore,
+  RejectChore,
+  SkipChore,
+  UndoChoreAction,
+  UpdateChoreAssignee,
+  UpdateDueDate,
 } from '../../../utils/Fetcher'
 
 export const useChoreActions = ({
@@ -121,7 +121,8 @@ export const useChoreActions = ({
         archive: {
           type: 'success',
           title: 'Task Archived',
-          message: 'The task has been archived and hidden from the active list.',
+          message:
+            'The task has been archived and hidden from the active list.',
         },
         started: {
           type: 'success',
@@ -147,7 +148,18 @@ export const useChoreActions = ({
         notifyFn({ title: notification.title, message: notification.message })
       }
     },
-    [chores, filteredChores, setChores, setFilteredChores, queryClient, showSuccess, showError, showWarning, showUndo, refetchChores],
+    [
+      chores,
+      filteredChores,
+      setChores,
+      setFilteredChores,
+      queryClient,
+      showSuccess,
+      showError,
+      showWarning,
+      showUndo,
+      refetchChores,
+    ],
   )
 
   const handleChoreAction = useCallback(
@@ -159,17 +171,19 @@ export const useChoreActions = ({
           setFilteredChores(prev => prev.filter(c => c.id !== chore.id))
 
           queryClient.setQueriesData({ queryKey: ['chores'] }, oldData => {
-            if (!oldData || !oldData.res) return oldData;
+            if (!oldData || !oldData.res) return oldData
             return {
               ...oldData,
               res: oldData.res.filter(c => c.id !== chore.id),
             }
-          });
+          })
 
           try {
             const response = await MarkChoreComplete(
               chore.id,
-              impersonatedUser ? { completedBy: impersonatedUser.userId } : null,
+              impersonatedUser
+                ? { completedBy: impersonatedUser.userId }
+                : null,
               null,
               null,
             )
@@ -333,8 +347,7 @@ export const useChoreActions = ({
                 },
               })
             })
-          } catch (error) {
-          }
+          } catch (error) {}
           break
 
         case 'skip':
@@ -568,7 +581,15 @@ export const useChoreActions = ({
         setConfirmModelConfig({})
       },
     })
-  }, [getSelectedChoresData, impersonatedUser, showSuccess, showError, refetchChores, clearSelection, setConfirmModelConfig])
+  }, [
+    getSelectedChoresData,
+    impersonatedUser,
+    showSuccess,
+    showError,
+    refetchChores,
+    clearSelection,
+    setConfirmModelConfig,
+  ])
 
   const handleBulkArchive = useCallback(async () => {
     const selectedData = getSelectedChoresData(chores)
@@ -603,8 +624,7 @@ export const useChoreActions = ({
                     },
                   })
                 })
-              } catch (error) {
-              }
+              } catch (error) {}
             }
             if (archivedTasks.length > 0) {
               showSuccess({
@@ -630,7 +650,17 @@ export const useChoreActions = ({
         setConfirmModelConfig({})
       },
     })
-  }, [getSelectedChoresData, archiveChore, setChores, setFilteredChores, showSuccess, showError, refetchChores, clearSelection, setConfirmModelConfig])
+  }, [
+    getSelectedChoresData,
+    archiveChore,
+    setChores,
+    setFilteredChores,
+    showSuccess,
+    showError,
+    refetchChores,
+    clearSelection,
+    setConfirmModelConfig,
+  ])
 
   const handleBulkDelete = useCallback(async () => {
     const selectedData = getSelectedChoresData(chores)
@@ -690,7 +720,18 @@ export const useChoreActions = ({
         setConfirmModelConfig({})
       },
     })
-  }, [getSelectedChoresData, chores, filteredChores, setChores, setFilteredChores, showSuccess, showError, refetchChores, clearSelection, setConfirmModelConfig])
+  }, [
+    getSelectedChoresData,
+    chores,
+    filteredChores,
+    setChores,
+    setFilteredChores,
+    showSuccess,
+    showError,
+    refetchChores,
+    clearSelection,
+    setConfirmModelConfig,
+  ])
 
   const handleBulkSkip = useCallback(async () => {
     const selectedData = getSelectedChoresData(chores)
@@ -760,7 +801,15 @@ export const useChoreActions = ({
         setConfirmModelConfig({})
       },
     })
-  }, [getSelectedChoresData, showSuccess, showError, showUndo, refetchChores, clearSelection, setConfirmModelConfig])
+  }, [
+    getSelectedChoresData,
+    showSuccess,
+    showError,
+    showUndo,
+    refetchChores,
+    clearSelection,
+    setConfirmModelConfig,
+  ])
 
   return {
     handleChoreAction,

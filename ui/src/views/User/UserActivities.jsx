@@ -43,8 +43,7 @@ import { COLORS, TASK_COLOR } from '../../utils/Colors.jsx'
 import { resolvePhotoURL } from '../../utils/Helpers.jsx'
 import LoadingComponent from '../components/Loading'
 
-const getItemDate = item =>
-  item.performedAt || item.updatedAt || item.createdAt
+const getItemDate = item => item.performedAt || item.updatedAt || item.createdAt
 
 const groupByDate = history => {
   const aggregated = {}
@@ -62,7 +61,15 @@ const groupByDate = history => {
   return aggregated
 }
 
-const ChoreHistoryItem = ({ time, name, points, status, performer, notes, onViewNote }) => {
+const ChoreHistoryItem = ({
+  time,
+  name,
+  points,
+  status,
+  performer,
+  notes,
+  onViewNote,
+}) => {
   const getStatusIcon = status => {
     switch (status) {
       case 0:
@@ -147,7 +154,6 @@ const ChoreHistoryItem = ({ time, name, points, status, performer, notes, onView
   )
 }
 
-
 const ChoreHistoryTimeline = ({ history, onViewNote }) => {
   const { fmt } = useLocalization()
 
@@ -180,11 +186,8 @@ const ChoreHistoryTimeline = ({ history, onViewNote }) => {
               <>
                 <ChoreHistoryItem
                   key={record.id}
-
                   time={
-                    getItemDate(record)
-                      ? fmt.time(getItemDate(record))
-                      : '—'
+                    getItemDate(record) ? fmt.time(getItemDate(record)) : '—'
                   }
                   name={record.choreName}
                   points={record.points}

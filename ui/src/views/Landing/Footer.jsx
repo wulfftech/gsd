@@ -333,7 +333,6 @@ const Footer = () => {
             <Typography level='body-sm' sx={{ color: 'text.secondary' }}>
               Version {version}
             </Typography>
-         
           </Box>
         </Box>
       </Container>

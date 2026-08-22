@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       // Ensure apiClient is initialized with the correct URL
       await apiClient.init()
       const currentBaseURL = apiClient.getApiURL()
-      
+
       const isNative =
         typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()
 

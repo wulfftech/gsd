@@ -143,9 +143,7 @@ const ProfileSettings = () => {
   return (
     <SettingsLayout title={t('profile.title')}>
       <div className='grid gap-4 py-4' id='profile'>
-        <Typography level='body-md'>
-          {t('profile.description')}
-        </Typography>
+        <Typography level='body-md'>{t('profile.description')}</Typography>
         <Card
           sx={{
             display: 'flex',

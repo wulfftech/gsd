@@ -84,9 +84,7 @@ const generateSchedulePreview = (metadata, formatTimeFn) => {
     .map(day => day.charAt(0).toUpperCase() + day.slice(1, 3))
     .join(', ')
 
-  const timeStr = metadata.time
-    ? formatTimeFn(metadata.time)
-    : '6:00 PM'
+  const timeStr = metadata.time ? formatTimeFn(metadata.time) : '6:00 PM'
 
   if (metadata.weekPattern === 'every_week' || !metadata.weekPattern) {
     return `Every ${dayNames} at ${timeStr}`

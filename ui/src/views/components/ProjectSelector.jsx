@@ -368,7 +368,9 @@ const ProjectSelector = ({
               backgroundColor:
                 effectiveSelectedProject === project.name
                   ? 'var(--joy-palette-primary-softBg)'
-                  : selectedIndex === index + 1 && anchorEl && isKeyboardNavigating
+                  : selectedIndex === index + 1 &&
+                      anchorEl &&
+                      isKeyboardNavigating
                     ? 'var(--joy-palette-neutral-softHoverBg)'
                     : 'transparent',
               '&:hover': {
@@ -459,7 +461,9 @@ const ProjectSelector = ({
           sx={{
             borderRadius: 'var(--joy-radius-sm)',
             backgroundColor:
-              selectedIndex === defaultProjects.length + 1 && anchorEl && isKeyboardNavigating
+              selectedIndex === defaultProjects.length + 1 &&
+              anchorEl &&
+              isKeyboardNavigating
                 ? 'var(--joy-palette-success-softHoverBg)'
                 : 'transparent',
             '&:hover': {
@@ -494,7 +498,9 @@ const ProjectSelector = ({
           sx={{
             borderRadius: 'var(--joy-radius-sm)',
             backgroundColor:
-              selectedIndex === defaultProjects.length + 2 && anchorEl && isKeyboardNavigating
+              selectedIndex === defaultProjects.length + 2 &&
+              anchorEl &&
+              isKeyboardNavigating
                 ? 'var(--joy-palette-neutral-softHoverBg)'
                 : 'transparent',
             '&:hover': {

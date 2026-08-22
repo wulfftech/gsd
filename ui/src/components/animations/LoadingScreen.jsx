@@ -86,7 +86,7 @@ const LoadingScreen = ({
             </Typography>
           </LogoContainer>
         )}
-        
+
         <CircularProgress
           size={size}
           sx={{
@@ -94,7 +94,7 @@ const LoadingScreen = ({
             mb: 2,
           }}
         />
-        
+
         <PulsingText level='body-md'>{message}</PulsingText>
       </LoadingContent>
     </LoadingContainer>

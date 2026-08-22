@@ -98,7 +98,9 @@ const ChoreView = () => {
   const [chorePriority, setChorePriority] = useState(null)
   const [noteViewerConfig, setNoteViewerConfig] = useState({ isOpen: false })
   const [timerActionConfig, setTimerActionConfig] = useState({ isOpen: false })
-  const [performerPickerConfig, setPerformerPickerConfig] = useState({ isOpen: false })
+  const [performerPickerConfig, setPerformerPickerConfig] = useState({
+    isOpen: false,
+  })
   const { data: circleMembersData, isLoading: isCircleMembersLoading } =
     useCircleMembers()
   const { data: userProfile } = useUserProfile()
@@ -166,7 +168,9 @@ const ChoreView = () => {
         icon: <CalendarMonth />,
         title: t('choreView.schedule'),
         text: `${t('choreView.due')}: ${
-          chore.nextDueDate ? moment(chore.nextDueDate).fromNow() : t('choreView.na')
+          chore.nextDueDate
+            ? moment(chore.nextDueDate).fromNow()
+            : t('choreView.na')
         }`,
         subtext: `${t('choreView.last')}: ${
           chore.lastCompletedDate
@@ -266,8 +270,7 @@ const ChoreView = () => {
 
   const isChoreUnassigned = () => {
     return (
-      !chore.assignedTo &&
-      (!chore.assignees || chore.assignees.length === 0)
+      !chore.assignedTo && (!chore.assignees || chore.assignees.length === 0)
     )
   }
 

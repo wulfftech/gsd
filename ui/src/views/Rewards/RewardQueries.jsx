@@ -21,14 +21,20 @@ const parseError = async resp => {
 export const useRewards = () => {
   return useQuery({
     queryKey: ['rewards'],
-    queryFn: () => GetRewards().then(r => r.json()).then(d => d ?? []),
+    queryFn: () =>
+      GetRewards()
+        .then(r => r.json())
+        .then(d => d ?? []),
   })
 }
 
 export const useRedemptions = () => {
   return useQuery({
     queryKey: ['rewardRedemptions'],
-    queryFn: () => GetRewardRedemptions().then(r => r.json()).then(d => d ?? []),
+    queryFn: () =>
+      GetRewardRedemptions()
+        .then(r => r.json())
+        .then(d => d ?? []),
   })
 }
 

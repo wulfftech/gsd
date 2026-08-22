@@ -215,17 +215,17 @@ const registerCapacitorListeners = () => {
     return
   }
   localNotificationListenerRegistration()
-  
+
   // Register deep link handler for OAuth and other deep links
   mobileApp.addListener('appUrlOpen', event => {
     console.log('App URL opened:', event.url)
-    
+
     // Handle OAuth callback
     if (event.url.startsWith('donetick://auth/')) {
       handleOAuthDeepLink(event.url)
     }
   })
-  
+
   mobileApp.addListener('appStateChange', ({ isActive }) => {
     focusManager.setFocused(isActive)
   })

@@ -54,12 +54,8 @@ const DeveloperSettings = () => {
           const pending = await LocalNotifications.getPending()
           // Sort by schedule time (earliest first)
           const sorted = pending.notifications.sort((a, b) => {
-            const timeA = a.schedule?.at
-              ? new Date(a.schedule.at).getTime()
-              : 0
-            const timeB = b.schedule?.at
-              ? new Date(b.schedule.at).getTime()
-              : 0
+            const timeA = a.schedule?.at ? new Date(a.schedule.at).getTime() : 0
+            const timeB = b.schedule?.at ? new Date(b.schedule.at).getTime() : 0
             return timeA - timeB
           })
           setScheduledNotifications(sorted)
@@ -436,9 +432,7 @@ const DeveloperSettings = () => {
                       ? new Date(scheduleTime)
                       : null
                     const now = new Date()
-                    const timeUntil = scheduledDate
-                      ? scheduledDate - now
-                      : null
+                    const timeUntil = scheduledDate ? scheduledDate - now : null
 
                     return (
                       <Card

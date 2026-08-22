@@ -19,7 +19,11 @@ import { useLocalization } from '../../contexts/LocalizationContext'
 import { TASK_COLOR } from '../../utils/Colors.jsx'
 
 const getCompletedChip = historyEntry => {
-  if (historyEntry.status === 0 || historyEntry.status === 5 || historyEntry.status === 6) {
+  if (
+    historyEntry.status === 0 ||
+    historyEntry.status === 5 ||
+    historyEntry.status === 6
+  ) {
     return null
   }
 

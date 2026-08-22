@@ -280,7 +280,6 @@ const NotificationSetting = () => {
     }
   }
   return (
-
     <SettingsLayout title='Notification Settings'>
       <div className='grid gap-4 py-4' id='notifications'>
         <Typography level='h3'>Device Notification</Typography>
