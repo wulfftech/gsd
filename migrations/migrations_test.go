@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	sModel "donetick.com/core/external/payment/model"
 	chModel "donetick.com/core/internal/chore/model"
 	cModel "donetick.com/core/internal/circle/model"
-	sModel "donetick.com/core/external/payment/model"
 	filterModel "donetick.com/core/internal/filter/model"
 	lModel "donetick.com/core/internal/label/model"
 	nModel "donetick.com/core/internal/notifier/model"
@@ -95,7 +95,7 @@ func TestMigrations_SmokeTest(t *testing.T) {
 	expectedTables := []string{
 		"users",
 		"chores",
-		"chore_histories",  // GORM pluralizes to chore_histories
+		"chore_histories", // GORM pluralizes to chore_histories
 		"circles",
 		"user_circles",
 		"labels",

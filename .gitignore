@@ -1,6 +1,9 @@
 # Backend
 donetick.db
 *.db
+*.db-shm
+*.db-wal
+*.db.bak-*
 .vscode/launch.json
 .env.local
 

@@ -17,7 +17,7 @@ import (
 
 // API exposes the rewards catalog and redemption flow over the external
 // (API-token) interface so Home Assistant and other integrations can read
-// the catalog, redeem on behalf of a member, and fulfil redemptions.
+// the catalog, redeem on behalf of a member, and fulfill redemptions.
 type API struct {
 	rRepo      *rRepo.RewardRepository
 	circleRepo *cRepo.CircleRepository
