@@ -242,6 +242,20 @@ func (r *UserRepository) StoreAPIToken(c context.Context, userID int, name strin
 	return token, nil
 }
 
+// apiTokenLastUsedThrottle bounds how often GetUserByToken persists a fresh
+// LastUsedAt for an API token. GetUserByToken runs on every authenticated eapi
+// request, and on SQLite this app deliberately caps the pool to a single
+// connection (see internal/database/database.go's SetMaxOpenConns(1)), so a
+// write on every call would serialize authentication behind a DB write and
+// compete with everything else on that one connection. LastUsedAt only exists
+// so a human deciding whether to revoke a long-lived token can tell it's still
+// in use -- that decision doesn't need better than minute-level freshness, so
+// five minutes was chosen to keep a token polled every few seconds/minutes
+// (e.g. Home Assistant) to roughly one write per five minutes instead of one
+// per request, while still updating well within a single "is this thing still
+// being used" check.
+const apiTokenLastUsedThrottle = 5 * time.Minute
+
 func (r *UserRepository) GetUserByToken(c context.Context, token string) (*uModel.UserDetails, error) {
 	var user *uModel.UserDetails
 	var apiToken *uModel.APIToken
@@ -255,6 +269,14 @@ func (r *UserRepository) GetUserByToken(c context.Context, token string) (*uMode
 	// Check if token is expired
 	if apiToken.ExpiresAt != nil && apiToken.ExpiresAt.Before(now) {
 		return nil, gorm.ErrRecordNotFound
+	}
+
+	// Record usage, throttled and off the request path: this call is the hot
+	// path for every authenticated eapi request, so we never block
+	// authentication on this write, and a failure to record it must never fail
+	// authentication -- touchAPITokenLastUsed logs and swallows its own errors.
+	if apiToken.LastUsedAt == nil || now.Sub(*apiToken.LastUsedAt) >= apiTokenLastUsedThrottle {
+		go r.touchAPITokenLastUsed(apiToken.ID, now)
 	}
 
 	if r.isDonetickDotCom {
@@ -273,6 +295,20 @@ func (r *UserRepository) GetUserByToken(c context.Context, token string) (*uMode
 	}
 
 	return user, nil
+}
+
+// touchAPITokenLastUsed persists the token's LastUsedAt off the request path.
+// It's invoked via `go` from GetUserByToken, so it must not use the request's
+// context (canceled once the response is written) and must never propagate an
+// error back into the auth flow -- it logs and returns instead.
+func (r *UserRepository) touchAPITokenLastUsed(tokenID int, at time.Time) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := r.db.WithContext(ctx).Model(&uModel.APIToken{}).
+		Where("id = ?", tokenID).
+		Update("last_used_at", at).Error; err != nil {
+		logging.FromContext(ctx).Warnw("failed to update api token last_used_at", "tokenID", tokenID, "error", err)
+	}
 }
 
 func (r *UserRepository) GetAllUserTokens(c context.Context, userID int) ([]*uModel.APIToken, error) {
