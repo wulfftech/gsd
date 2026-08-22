@@ -39,7 +39,7 @@ import { CompleteSubTask } from '../../utils/Fetcher'
 
 function SortableItem({
   task,
-  index,
+
   handleToggle,
   handleDelete,
   handleAddSubtask,

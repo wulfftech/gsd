@@ -9,8 +9,8 @@ const Home = () => {
   const getCurrentUser = () => {
     return JSON.parse(localStorage.getItem('user'))
   }
-  const [users, setUsers] = useState([])
-  const [currentUser, setCurrentUser] = useState(getCurrentUser())
+  const [, setUsers] = useState([])
+  const [, setCurrentUser] = useState(getCurrentUser())
 
   useEffect(() => {}, [])
 

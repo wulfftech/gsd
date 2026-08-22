@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Card,
   Checkbox,
   Chip,
   FormControl,
@@ -23,7 +22,7 @@ const AdvancedSettings = () => {
 
   const [userCircles, setUserCircles] = useState([])
   const [webhookURL, setWebhookURL] = useState(null)
-  const [webhookError, setWebhookError] = useState(null)
+  const [webhookError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {

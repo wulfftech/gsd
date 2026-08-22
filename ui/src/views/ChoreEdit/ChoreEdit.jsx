@@ -76,10 +76,10 @@ const ChoreEdit = () => {
     useUserProfile()
 
   const [chore, setChore] = useState([])
-  const [choresHistory, setChoresHistory] = useState([])
-  const [userHistory, setUserHistory] = useState({})
+  const [, setChoresHistory] = useState([])
+  const [, setUserHistory] = useState({})
   const { choreId } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [confirmModelConfig, setConfirmModelConfig] = useState({})
@@ -94,7 +94,7 @@ const ChoreEdit = () => {
   const [frequencyType, setFrequencyType] = useState('once')
   const [frequency, setFrequency] = useState(1)
   const [frequencyMetadata, setFrequencyMetadata] = useState({})
-  const [labels, setLabels] = useState([])
+  const [labels] = useState([])
   const [labelsV2, setLabelsV2] = useState([])
   const [priority, setPriority] = useState(0)
   const [points, setPoints] = useState(-1)
@@ -118,17 +118,15 @@ const ChoreEdit = () => {
   const [attemptToSave, setAttemptToSave] = useState(false)
   const [addLabelModalOpen, setAddLabelModalOpen] = useState(false)
   const [showSavePrivacyDefault, setShowSavePrivacyDefault] = useState(false)
-  const [privacySaved, setPrivacySaved] = useState(false)
-  const [showSaveNotificationDefault, setShowSaveNotificationDefault] =
-    useState(false)
+  const [, setPrivacySaved] = useState(false)
+  const [, setShowSaveNotificationDefault] = useState(false)
   const [showSaveAssigneeDefault, setShowSaveAssigneeDefault] = useState(false)
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
 
   const { data: userLabelsRaw, isLoading: isUserLabelsLoading } = useLabels()
   const { data: projects = [], isLoading: isProjectsLoading } = useProjects()
 
-  const { selectedProject, projectsWithDefault, setSelectedProjectWithCache } =
-    useProjectFilter(projects)
+  const { selectedProject } = useProjectFilter(projects)
 
   const [projectId, setProjectId] = useState(
     selectedProject ? selectedProject.id : 'default',
@@ -139,11 +137,7 @@ const ChoreEdit = () => {
   const archiveChore = useArchiveChore()
   const unarchiveChore = useUnArchiveChore()
   const deleteChores = useDeleteChores()
-  const {
-    data: choreData,
-    isLoading: isChoreLoading,
-    refetch: refetchChore,
-  } = useChore(choreId)
+  const { data: choreData, isLoading: isChoreLoading } = useChore(choreId)
   const { data: membersData, isLoading: isMemberDataLoading } =
     useCircleMembers()
   const { showSuccess, showError } = useNotification()
@@ -819,7 +813,7 @@ const ChoreEdit = () => {
               setLabelsV2(userLabels.filter(l => newValue.indexOf(l.name) > -1))
             }}
             value={labelsV2?.map(l => l.name)}
-            renderValue={selected => (
+            renderValue={() => (
               <Box sx={{ display: 'flex', gap: '0.25rem' }}>
                 {labelsV2.map(selectedOption => {
                   return (
@@ -941,7 +935,7 @@ const ChoreEdit = () => {
                 />
               </ListItem>
 
-              {performers?.map((item, index) => (
+              {performers?.map(item => (
                 <ListItem key={item.id}>
                   <Checkbox
                     checked={
@@ -1017,7 +1011,7 @@ const ChoreEdit = () => {
               >
                 {performers
                   ?.filter(p => assignees.find(a => a.userId == p.userId))
-                  .map((item, index) => (
+                  .map(item => (
                     <Option
                       value={item.userId}
                       key={item.displayName}
@@ -1045,7 +1039,7 @@ const ChoreEdit = () => {
                     '--ListItem-radius': '20px',
                   }}
                 >
-                  {ASSIGN_STRATEGIES.map((item, idx) => (
+                  {ASSIGN_STRATEGIES.map(item => (
                     <ListItem key={item}>
                       <Checkbox
                         checked={assignStrategy === item}

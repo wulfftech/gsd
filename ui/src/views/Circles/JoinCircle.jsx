@@ -16,7 +16,7 @@ const JoinCircleView = () => {
   const { ackModalConfig, showAcknowledgment } = useAcknowledgmentModal()
   const [isJoining, setIsJoining] = useState(false)
 
-  let [searchParams, setSearchParams] = useSearchParams()
+  let [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const code = searchParams.get('code')
 

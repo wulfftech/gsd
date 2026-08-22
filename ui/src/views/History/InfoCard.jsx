@@ -3,8 +3,6 @@ import { Box } from '@mui/joy'
 import Card from '@mui/joy/Card'
 import CardContent from '@mui/joy/CardContent'
 import Typography from '@mui/joy/Typography'
-import * as React from 'react'
-
 function InfoCard() {
   return (
     <Card sx={{ minWidth: 200, maxWidth: 200 }}>

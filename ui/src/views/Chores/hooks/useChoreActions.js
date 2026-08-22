@@ -19,7 +19,7 @@ export const useChoreActions = ({
   filteredChores,
   setChores,
   setFilteredChores,
-  userProfile,
+
   impersonatedUser,
   showSuccess,
   showError,
@@ -426,7 +426,7 @@ export const useChoreActions = ({
       if (!modalChore) return
       UpdateDueDate(modalChore.id, newDate).then(response => {
         if (response.ok) {
-          response.json().then(data => {
+          response.json().then(() => {
             const newChore = modalChore
             newChore.nextDueDate = newDate
             updateChoreInState(newChore, 'rescheduled')

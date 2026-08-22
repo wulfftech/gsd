@@ -300,7 +300,7 @@ const SettingsOverview = () => {
             '--ListItem-paddingX': '20px',
           }}
         >
-          {getAvailableSettings().map((setting, index) => (
+          {getAvailableSettings().map(setting => (
             <ListItem key={setting.id} sx={{ p: 0 }}>
               <ListItemButton
                 onClick={() => handleCardClick(setting.id)}

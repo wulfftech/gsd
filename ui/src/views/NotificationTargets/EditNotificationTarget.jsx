@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom'
 
 const EditNotificationTarget = () => {
   const { id } = useParams()
-  const [notificationTarget, setNotificationTarget] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [notificationTarget] = useState(null)
+  const [loading] = useState(true)
+  const [error] = useState(null)
 
   useEffect(() => {
     // const fetchNotificationTarget = async () => {

@@ -57,7 +57,7 @@ const TaskInput = ({ autoFocus, onChoreUpdate, isModalOpen, onClose }) => {
   const { data: userLabels, isLoading: userLabelsLoading } = useLabels()
   const { data: circleMembers, isLoading: isCircleMembersLoading } =
     useCircleMembers()
-  const { data: projects = [], isLoading: isProjectsLoading } = useProjects()
+  const { isLoading: isProjectsLoading } = useProjects()
   const createChoreMutation = useCreateChore()
 
   const { data: userProfile } = useUserProfile()
@@ -92,14 +92,14 @@ const TaskInput = ({ autoFocus, onChoreUpdate, isModalOpen, onClose }) => {
   const [notificationMetadata, setNotificationMetadata] = useState({
     templates: getDefaultNotification(),
   })
-  const [frequencyHumanReadable, setFrequencyHumanReadable] = useState(null)
+  const [, setFrequencyHumanReadable] = useState(null)
   const [subTasks, setSubTasks] = useState(null)
   const [points, setPoints] = useState(-1)
   const [isAnyoneTask, setIsAnyoneTask] = useState(false)
   const [hasDescription, setHasDescription] = useState(false)
   const [hasSubTasks, setHasSubTasks] = useState(false)
   const [hasNotifications, setHasNotifications] = useState(false)
-  const [hasDeadline, setHasDeadline] = useState(false)
+  const [, setHasDeadline] = useState(false)
   const [deadlineOffset, setDeadlineOffset] = useState(-1)
   const [dueDateOnly, setDueDateOnly] = useState(null)
   const [dueTime, setDueTime] = useState(null)

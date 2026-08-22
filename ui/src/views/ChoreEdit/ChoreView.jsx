@@ -437,7 +437,7 @@ const ChoreView = () => {
   const handleUnarchiveChore = () => {
     UnArchiveChore(choreId).then(response => {
       if (response.ok) {
-        response.json().then(data => {
+        response.json().then(() => {
           setChore({ ...chore, isActive: true })
           // Invalidate chores cache to refetch data
           queryClient.invalidateQueries(['chores'])

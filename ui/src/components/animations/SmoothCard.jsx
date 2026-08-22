@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card } from '@mui/joy'
 import { styled } from '@mui/joy/styles'
 

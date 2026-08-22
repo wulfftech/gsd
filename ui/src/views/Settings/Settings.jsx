@@ -67,7 +67,7 @@ const Settings = () => {
   const [circleInviteCode, setCircleInviteCode] = useState('')
   const [circleMembers, setCircleMembers] = useState([])
   const [webhookURL, setWebhookURL] = useState(null)
-  const [webhookError, setWebhookError] = useState(null)
+  const [webhookError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)

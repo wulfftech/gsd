@@ -11,7 +11,7 @@ import { apiClient } from '../../utils/ApiClient'
 import { GetUserProfile } from '../../utils/Fetcher'
 
 const AuthenticationLoading = () => {
-  const { data: userProfile, refetch: refetchUserProfile } = useUserProfile()
+  const { refetch: refetchUserProfile } = useUserProfile()
   const Navigate = useNavigate()
   const hasCalledHandleOAuth2 = useRef(false)
   const [message, setMessage] = useState('Authenticating')
@@ -29,7 +29,7 @@ const AuthenticationLoading = () => {
   }, [provider])
   const getUserProfileAndNavigateToHome = () => {
     GetUserProfile().then(data => {
-      data.json().then(data => {
+      data.json().then(() => {
         refetchUserProfile().then(() => {
           // check if redirect url is set in cookie:
           const redirectUrl = Cookies.get('ca_redirect')

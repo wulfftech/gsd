@@ -94,10 +94,9 @@ const formatTime = seconds => {
  * Compact HistoryCard component - content only
  */
 const HistoryCard = ({
-  allHistory,
   performers,
   historyEntry,
-  index,
+
   onToggleActions,
   onViewNote,
 }) => {

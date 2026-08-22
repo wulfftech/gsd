@@ -110,7 +110,7 @@ const MyChores = () => {
   const [choreSections, setChoreSections] = useState([])
   const [showSearchFilter, setShowSearchFilter] = useState(false)
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false)
-  const [taskInputFocus, setTaskInputFocus] = useState(0)
+  const [taskInputFocus] = useState(0)
   const searchInputRef = useRef(null)
   const [searchInputFocus, setSearchInputFocus] = useState(0)
   const [selectedChoreSection, setSelectedChoreSection] = useState(
@@ -144,7 +144,6 @@ const MyChores = () => {
     setSearchTerm,
     setSearchFilter,
     setSelectedChoreFilterWithCache,
-    clearFilters,
   } = useChoreFilters({
     chores,
     selectedProject,
@@ -162,8 +161,7 @@ const MyChores = () => {
     getSelectedChoresData,
   } = useMultiSelect()
 
-  const { activeModal, modalChore, modalData, openModal, closeModal } =
-    useChoreModals()
+  const { activeModal, modalChore, openModal, closeModal } = useChoreModals()
 
   const {
     savedFilters,
@@ -180,7 +178,7 @@ const MyChores = () => {
     updateFilter,
     deleteFilter,
     pinFilter,
-    createFilterFromCurrentState,
+
     hasProjectConditions,
     hasFilterApplied,
   } = useCustomFilters(

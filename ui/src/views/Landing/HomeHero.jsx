@@ -23,7 +23,7 @@ const HomeHero = () => {
     'The smart task manager that keeps individuals and families organized with intelligent scheduling and fair task distribution.',
   ]
 
-  const [heroTextIndex, setHeroTextIndex] = React.useState(0)
+  const [heroTextIndex] = React.useState(0)
 
   useEffect(() => {
     // const intervalId = setInterval(

@@ -2,7 +2,7 @@ import { useColorScheme } from '@mui/joy'
 import { useEffect, useRef, useState } from 'react'
 import AutocompleteDropdown from '../TestView/AutocompleteDropdown'
 import './SmartTaskTitleInput.css'
-const renderHighlightedText = (text, cursorPosition) => {
+const renderHighlightedText = text => {
   const parts = []
   let lastIndex = 0
 
@@ -53,7 +53,7 @@ const SmartTaskTitleInput = ({
   onEnterPressed,
   customRenderer,
 }) => {
-  const { mode, setMode } = useColorScheme()
+  const { mode } = useColorScheme()
   const titleInputRef = useRef(null)
   const [cursorPosition, setCursorPosition] = useState(value?.length)
   const dropdownRef = useRef(null)

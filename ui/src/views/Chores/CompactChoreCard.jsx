@@ -37,7 +37,6 @@ const CompactChoreCard = ({
   isMultiSelectMode = false,
   isSelected = false,
   onSelectionToggle,
-  onlyClickable = false,
 }) => {
   const navigate = useNavigate()
 

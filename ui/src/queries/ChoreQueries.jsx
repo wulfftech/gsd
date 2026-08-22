@@ -194,7 +194,7 @@ export const useUpdateChore = () => {
               t.id === task.id ? updatedTask : t,
             )
             await localStore.saveToCache('offlineTasks', updatedOfflineTasks)
-            return new Promise((resolve, reject) => {
+            return new Promise(resolve => {
               resolve(updatedTask)
             })
           }
@@ -209,7 +209,7 @@ export const useUpdateChore = () => {
           ...offlineTasks,
           updatedChoreWithNewId,
         ])
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
           // Resolve with the updated task
           resolve(updatedChoreWithNewId)
         })
@@ -242,7 +242,7 @@ export const useUpdateChore = () => {
       // Invalidate history for the specific chore
       queryClient.invalidateQueries(['choreHistory', variables.id])
     },
-    onMutate: async updatedChore => {
+    onMutate: async () => {
       if (!networkManager.isOnline && isFeatureEnabled(FEATURES.OFFLINE_MODE)) {
         // Handle offline case here if needed
         return

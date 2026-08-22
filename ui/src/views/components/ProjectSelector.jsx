@@ -25,7 +25,7 @@ const ProjectSelector = ({
   onProjectSelect,
   showKeyboardShortcuts = false,
 }) => {
-  const { data: projects = [], isLoading } = useProjects()
+  const { data: projects = [] } = useProjects()
   const navigate = useNavigate()
 
   const [anchorEl, setAnchorEl] = useState(null)

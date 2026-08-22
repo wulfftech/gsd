@@ -66,7 +66,7 @@ const ChoreHistoryItem = ({
   name,
   points,
   status,
-  performer,
+
   notes,
   onViewNote,
 }) => {

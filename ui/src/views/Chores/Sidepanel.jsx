@@ -18,13 +18,9 @@ const Sidepanel = ({
   tempFilter,
 }) => {
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.up('lg'))
-  const [dueDatePieChartData, setDueDatePieChartData] = useState([])
+  const [, setDueDatePieChartData] = useState([])
   const [sidepanelConfig, setSidepanelConfig] = useState([])
-  const {
-    data: choresHistory,
-    isChoresHistoryLoading,
-    handleLimitChange: refetchHistory,
-  } = useChoresHistory(7, true)
+  const { data: choresHistory } = useChoresHistory(7, true)
 
   useEffect(() => {
     setDueDatePieChartData(generateChoreDuePieChartData(chores))

@@ -39,5 +39,21 @@ module.exports = {
       { allowConstantExport: true },
     ],
     'react/prop-types': 'off',
+    // Deliberate discards are prefixed with an underscore, a convention the
+    // code already uses. It is load-bearing in BottomSheetModal/FadeModal,
+    // where the named bindings exist purely to keep those props out of the
+    // ...modalProps rest spread -- deleting them would change what reaches
+    // the DOM. ignoreRestSiblings covers that idiom directly.
+    'no-unused-vars': [
+      'error',
+      {
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+        varsIgnorePattern: '^_',
+      },
+    ],
   },
 }

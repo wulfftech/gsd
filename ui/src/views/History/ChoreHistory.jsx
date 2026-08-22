@@ -39,7 +39,7 @@ import NoteViewerModal from '../Modals/Inputs/NoteViewerModal'
 import HistoryCard from './HistoryCard'
 
 const ChoreHistory = () => {
-  const [userHistory, setUserHistory] = useState([])
+  const [, setUserHistory] = useState([])
   const [historyInfo, setHistoryInfo] = useState([])
   const { choreId } = useParams()
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -48,7 +48,7 @@ const ChoreHistory = () => {
   const { fmt } = useLocalization()
   const [showMoreInfoId, setShowMoreInfoId] = useState(null)
   const [noteViewerConfig, setNoteViewerConfig] = useState({ isOpen: false })
-  const { showSuccess, showError } = useNotification()
+  const { showSuccess } = useNotification()
   // React Query hooks
   const { data: choreHistoryData, isLoading } = useChoreHistory(choreId)
   const { data: circleMembersData } = useCircleMembers()

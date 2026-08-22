@@ -3,7 +3,7 @@ import { useState } from 'react'
 import RepeatSection from '../ChoreEdit/RepeatSection'
 
 const DemoScheduler = () => {
-  const [assignees, setAssignees] = useState([])
+  const [, setAssignees] = useState([])
   const [frequency, setFrequency] = useState(2)
   const [frequencyType, setFrequencyType] = useState('weekly')
   const [frequencyMetadata, setFrequencyMetadata] = useState({
@@ -25,10 +25,10 @@ const DemoScheduler = () => {
             onFrequencyTypeUpdate={setFrequencyType}
             frequencyMetadata={frequencyMetadata}
             onFrequencyMetadataUpdate={setFrequencyMetadata}
-            onFrequencyTimeUpdate={t => {}}
+            onFrequencyTimeUpdate={() => {}}
             frequencyError={null}
             allUserThings={[]}
-            onTriggerUpdate={thingUpdate => {}}
+            onTriggerUpdate={() => {}}
             OnTriggerValidate={() => {}}
             isAttemptToSave={false}
             selectedThing={null}

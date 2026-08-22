@@ -24,7 +24,7 @@ const SortAndGrouping = ({
   selectedFilter,
   setFilter,
   isActive,
-  useChips,
+
   title,
   onCreateNewFilter,
 }) => {
