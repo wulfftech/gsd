@@ -205,6 +205,16 @@ type ChoreLiteReq struct {
 	ID          int     `json:"id"`
 	DueDate     string  `json:"dueDate"`
 	CreatedBy   *int    `json:"createdBy"`
+	// FrequencyType and AssignStrategy are optional strings (rather than the
+	// typed FrequencyType/AssignmentStrategy used by ChoreReq) so an absent
+	// field binds to nil and the API layer can tell "not provided" apart from
+	// a provided-but-invalid value, which it needs in order to keep today's
+	// defaults (FrequencyTypeOnce / AssignmentStrategyRandom) for existing
+	// callers while still rejecting garbage with a 400. See chore/api.go
+	// CreateChore for the validation and defaulting.
+	FrequencyType  *string `json:"frequencyType"`
+	AssignStrategy *string `json:"assignStrategy"`
+	AssignedTo     *int    `json:"assignedTo"`
 }
 
 type ChoreReq struct {

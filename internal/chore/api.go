@@ -1,6 +1,7 @@
 package chore
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -146,16 +147,104 @@ func (h *API) CreateChore(c *gin.Context) {
 		}
 	}
 
+	// FrequencyType: default to "once" (previous hardcoded behavior) so existing
+	// callers that never send this field are unaffected. Only the frequency types
+	// that need no extra scheduling metadata are accepted here -- "interval",
+	// "days_of_the_week", "day_of_the_month" (need FrequencyMetadataV2: unit/days/
+	// time/timezone), "adaptive" (needs completion history) and "trigger" (needs a
+	// ThingTrigger association) all require inputs this lite eapi payload doesn't
+	// carry, so rather than half-support them (and risk a chore that silently never
+	// reschedules, per scheduling.ScheduleNextDueDate) we reject them outright with
+	// a clear 400. Callers that need those can use the full web /api/v1/chores path.
+	frequencyType := chModel.FrequencyTypeOnce
+	if choreRequest.FrequencyType != nil && *choreRequest.FrequencyType != "" {
+		requested := chModel.FrequencyType(*choreRequest.FrequencyType)
+		switch requested {
+		case chModel.FrequencyTypeOnce, chModel.FrequencyTypeDaily, chModel.FrequencyTypeWeekly,
+			chModel.FrequencyTypeMonthly, chModel.FrequencyTypeYearly, chModel.FrequencyTypeNoRepeat:
+			frequencyType = requested
+		case chModel.FrequencyTypeInterval, chModel.FrequencyTypeDayOfTheWeek, chModel.FrequencyTypeDayOfTheMonth,
+			chModel.FrequencyTypeAdaptive, chModel.FrequencyTypeTrigger:
+			log.Debugw("chore.api.CreateChore unsupported frequencyType requiring metadata", "frequencyType", requested)
+			c.JSON(400, gin.H{"error": fmt.Sprintf(
+				"frequencyType %q requires additional metadata not supported by this endpoint; supported values are: once, daily, weekly, monthly, yearly, no_repeat",
+				*choreRequest.FrequencyType)})
+			return
+		default:
+			log.Debugw("chore.api.CreateChore invalid frequencyType", "frequencyType", *choreRequest.FrequencyType)
+			c.JSON(400, gin.H{"error": fmt.Sprintf(
+				"invalid frequencyType %q; supported values are: once, daily, weekly, monthly, yearly, no_repeat",
+				*choreRequest.FrequencyType)})
+			return
+		}
+	}
+
+	// AssignStrategy: default to "random" (previous hardcoded behavior). Unlike
+	// FrequencyType, every strategy value is self-contained (it only governs how
+	// the *next* assignee is picked on completion -- see checkNextAssignee) so all
+	// of them are accepted, validated against the same enum handler.go's web path
+	// uses (chModel.AssignmentStrategy*), never an arbitrary string.
+	assignStrategy := chModel.AssignmentStrategyRandom
+	if choreRequest.AssignStrategy != nil && *choreRequest.AssignStrategy != "" {
+		requested := chModel.AssignmentStrategy(*choreRequest.AssignStrategy)
+		switch requested {
+		case chModel.AssignmentStrategyRandom, chModel.AssignmentStrategyLeastAssigned, chModel.AssignmentStrategyLeastCompleted,
+			chModel.AssignmentStrategyKeepLastAssigned, chModel.AssignmentStrategyRandomExceptLastAssigned,
+			chModel.AssignmentStrategyRoundRobin, chModel.AssignmentStrategyNoAssignee:
+			assignStrategy = requested
+		default:
+			log.Debugw("chore.api.CreateChore invalid assignStrategy", "assignStrategy", *choreRequest.AssignStrategy)
+			c.JSON(400, gin.H{"error": fmt.Sprintf(
+				"invalid assignStrategy %q; supported values are: random, least_assigned, least_completed, keep_last_assigned, random_except_last_assigned, round_robin, no_assignee",
+				*choreRequest.AssignStrategy)})
+			return
+		}
+	}
+
+	// AssignedTo: default to the creator (previous hardcoded behavior). A caller
+	// may instead name a specific circle member -- validated against circleUsers
+	// the same way handler.go's web path validates assignees ("Assignee not found
+	// in circle"). "no_assignee" strategy is mutually exclusive with an explicit
+	// assignedTo (mirrors Chore.CanComplete/RemoveAssigneeAndReassign, which treat
+	// AssignedTo == nil as the no-assignee signal), so combining them is a 400
+	// rather than silently picking one.
+	var assignedTo *int
+	var assignees []chModel.ChoreAssignees
+	if assignStrategy == chModel.AssignmentStrategyNoAssignee {
+		if choreRequest.AssignedTo != nil {
+			c.JSON(400, gin.H{"error": "assignedTo cannot be set when assignStrategy is no_assignee"})
+			return
+		}
+	} else {
+		assigneeID := createdBy
+		if choreRequest.AssignedTo != nil {
+			var found bool
+			for _, u := range circleUsers {
+				if u.UserID == *choreRequest.AssignedTo {
+					found = true
+					break
+				}
+			}
+			if !found {
+				log.Errorw("chore.api.CreateChore assignedTo user not found in circle", "userID", *choreRequest.AssignedTo)
+				c.JSON(400, gin.H{"error": "Assignee not found in circle"})
+				return
+			}
+			assigneeID = *choreRequest.AssignedTo
+		}
+		assignedTo = &assigneeID
+		assignees = []chModel.ChoreAssignees{{UserID: assigneeID}}
+	}
+
 	chore := &chModel.Chore{
-		CreatedBy:     createdBy,
-		CircleID:      user.CircleID,
-		Name:          choreRequest.Name,
-		IsActive:      true,
-		FrequencyType: chModel.FrequencyTypeOnce,
-		// Frequency:                choreRequest.Frequency,
-		AssignStrategy: chModel.AssignmentStrategyRandom,
-		AssignedTo:     &createdBy,
-		Assignees:      []chModel.ChoreAssignees{{UserID: createdBy}},
+		CreatedBy:      createdBy,
+		CircleID:       user.CircleID,
+		Name:           choreRequest.Name,
+		IsActive:       true,
+		FrequencyType:  frequencyType,
+		AssignStrategy: assignStrategy,
+		AssignedTo:     assignedTo,
+		Assignees:      assignees,
 		Description:    choreRequest.Description,
 		NextDueDate:    nextDueDate,
 		CreatedAt:      time.Now().UTC(),
