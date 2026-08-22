@@ -1,6 +1,8 @@
 import { Box, Sheet } from '@mui/joy'
 import { useMediaQuery } from '@mui/material'
 import { useEffect, useState } from 'react'
+import { PINNED_DRAWER_WIDTH } from '../../constants/layout'
+import { useNavLayout } from '../../contexts/NavLayoutContext'
 import { useChoresHistory } from '../../queries/ChoreQueries'
 import { ChoresGrouper } from '../../utils/Chores'
 import { getSidepanelConfig } from '../../utils/SidepanelConfig'
@@ -17,7 +19,17 @@ const Sidepanel = ({
   clearTempFilter,
   tempFilter,
 }) => {
-  const isLargeScreen = useMediaQuery(theme => theme.breakpoints.up('lg'))
+  // A pinned nav sidebar eats PINNED_DRAWER_WIDTH of horizontal space, so
+  // the viewport being 'lg' no longer means this panel has room for itself.
+  // Shift the threshold by the sidebar's width when it's persistent,
+  // otherwise the panel renders anyway and pushes the page into a
+  // horizontal scroll.
+  const { isPersistent } = useNavLayout()
+  const isLargeScreen = useMediaQuery(theme =>
+    theme.breakpoints.up(
+      theme.breakpoints.values.lg + (isPersistent ? PINNED_DRAWER_WIDTH : 0),
+    ),
+  )
   const [, setDueDatePieChartData] = useState([])
   const [sidepanelConfig, setSidepanelConfig] = useState([])
   const { data: choresHistory } = useChoresHistory(7, true)

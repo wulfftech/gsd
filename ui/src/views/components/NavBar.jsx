@@ -29,8 +29,6 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy'
-import { useMediaQuery } from '@mui/material'
-
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -39,19 +37,16 @@ import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { version } from '../../../package.json'
 import UserProfileAvatar from '../../components/UserProfileAvatar'
 import { useLocalization } from '../../contexts/LocalizationContext'
-import useStickyState from '../../hooks/useStickyState'
+import { useNavLayout } from '../../contexts/NavLayoutContext'
 import NavBarLink from './NavBarLink'
 
 import { SafeArea } from 'capacitor-plugin-safe-area'
+import { PINNED_DRAWER_WIDTH } from '../../constants/layout'
 import Z_INDEX from '../../constants/zIndex'
 import { useResource } from '../../queries/ResourceQueries'
 import { apiClient } from '../../utils/ApiClient'
 
 const publicPages = ['/landing', '/privacy', '/terms']
-
-// Matches Joy Drawer's 'sm' horizontal size so the pinned sidebar lines up
-// visually with the overlay drawer it replaces.
-const PINNED_DRAWER_WIDTH = 256
 
 // Nav links + logout/version footer, shared between the overlay Drawer
 // (mobile / unpinned) and the persistent sidebar (pinned + md-and-up), so the
@@ -160,12 +155,8 @@ const NavBar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const isWideViewport = useMediaQuery(theme => theme.breakpoints.up('md'))
-  const [navPinned, setNavPinned] = useStickyState(true, 'navDrawerPinned')
-  // Persistent sidebar only makes sense once pinned AND there's room for it;
-  // narrow viewports always fall back to the overlay drawer regardless of
-  // the pin setting.
-  const isPersistent = navPinned && isWideViewport
+  const { isPersistent, isWideViewport, navPinned, setNavPinned } =
+    useNavLayout()
 
   // Pending-approval alert for admins — only query when authenticated
   const { data: userProfile } = useUserProfile()
@@ -267,31 +258,6 @@ const NavBar = () => {
       }
     })
   }, [])
-
-  // When the sidebar is pinned+persistent, inset the app content so the
-  // sidebar doesn't sit on top of it. NavBar doesn't own the layout
-  // wrapper around <Outlet /> (see App.jsx), so this nudges the app root
-  // directly rather than reformatting that file's flow layout — the same
-  // imperative-style-on-a-shared-node approach the SafeArea effect above
-  // already uses in this component.
-  useEffect(() => {
-    const root = document.getElementById('root')
-    if (!root) {
-      return undefined
-    }
-    if (isPersistent) {
-      root.style[isRTL ? 'paddingRight' : 'paddingLeft'] =
-        `${PINNED_DRAWER_WIDTH}px`
-      root.style[isRTL ? 'paddingLeft' : 'paddingRight'] = ''
-    } else {
-      root.style.paddingLeft = ''
-      root.style.paddingRight = ''
-    }
-    return () => {
-      root.style.paddingLeft = ''
-      root.style.paddingRight = ''
-    }
-  }, [isPersistent, isRTL])
 
   // Avoid a stray overlay drawer appearing (e.g. from an earlier hamburger
   // click) once we switch into persistent sidebar mode.

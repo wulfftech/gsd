@@ -6,7 +6,9 @@ import { Outlet } from 'react-router-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { registerCapacitorListeners } from './CapacitorListener'
 import PageTransition from './components/animations/PageTransition'
+import { PINNED_DRAWER_WIDTH } from './constants/layout'
 import { ImpersonateUserProvider } from './contexts/ImpersonateUserContext'
+import { NavLayoutProvider, useNavLayout } from './contexts/NavLayoutContext'
 import SSEProvider from './contexts/SSEContext'
 import { AuthProvider } from './hooks/useAuth.jsx'
 import { useNotification } from './service/NotificationProvider'
@@ -33,6 +35,38 @@ const startOpenReplay = () => {
     projectKey: import.meta.env.VITE_OPENREPLAY_PROJECT_KEY,
   })
   tracker.start()
+}
+
+// Reserves horizontal space for NavBar's persistent pinned sidebar, which is
+// a position:fixed Sheet and so takes no space in normal flow on its own
+// (see NavBar.jsx). The spacer is a plain flex item placed first in DOM
+// order — flex-direction "row" runs along the inline axis, so with
+// document.dir kept in sync with the current language by
+// LocalizationContext, it lands on the left in LTR and the right in RTL
+// without any RTL branching here, matching where NavBar itself pins the
+// Sheet's left/right edge.
+const AppLayout = () => {
+  const { isPersistent } = useNavLayout()
+
+  return (
+    <div style={{ display: 'flex' }}>
+      {isPersistent && (
+        <div
+          aria-hidden='true'
+          style={{
+            flex: `0 0 ${PINNED_DRAWER_WIDTH}px`,
+            width: PINNED_DRAWER_WIDTH,
+          }}
+        />
+      )}
+      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+        <NavBar />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
+      </div>
+    </div>
+  )
 }
 
 const AppContent = () => {
@@ -85,14 +119,11 @@ const AppContent = () => {
   }, [needRefresh])
 
   return (
-    <div>
+    <NavLayoutProvider>
       <ImpersonateUserProvider>
-        <NavBar />
-        <PageTransition>
-          <Outlet />
-        </PageTransition>
+        <AppLayout />
       </ImpersonateUserProvider>
-    </div>
+    </NavLayoutProvider>
   )
 }
 
