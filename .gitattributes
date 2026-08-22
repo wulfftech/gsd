@@ -1,0 +1,3 @@
+# Shell scripts must keep LF endings - they run on the Linux deploy host,
+# where a CRLF shebang fails with "bad interpreter: /usr/bin/env bash^M".
+*.sh text eol=lf

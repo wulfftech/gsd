@@ -3,6 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Stamped into the binary via -ldflags. Populated by scripts/build.sh;
+        # a plain `docker compose build` falls back to "dev" for all three.
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-dev}
+        BUILD_DATE: ${BUILD_DATE:-dev}
     container_name: gsd
     restart: unless-stopped
     ports:

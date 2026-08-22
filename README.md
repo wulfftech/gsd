@@ -80,9 +80,14 @@ npm run dev
 
 ```bash
 git pull
-docker compose build
+./scripts/build.sh
 docker compose up -d
 ```
+
+`scripts/build.sh` is a thin wrapper around `docker compose build` that stamps the
+git version, commit, and build date into the binary. Plain `docker compose build`
+still works, but leaves all three reading `dev`, which makes deployed builds
+impossible to tell apart.
 
 ---
 
