@@ -78,7 +78,7 @@ import {
 } from './LocalNotificationScheduler'
 import NotificationAccessSnackbar from './NotificationAccessSnackbar'
 import Sidepanel from './Sidepanel'
-import { INSIGHT_FILTER_DEFS } from './SmartInsightsCard'
+import { INSIGHT_FILTER_DEFS } from './insightFilters'
 import SortAndGrouping from './SortAndGrouping'
 
 const MyChores = () => {
