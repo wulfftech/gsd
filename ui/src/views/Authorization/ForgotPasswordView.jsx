@@ -108,8 +108,8 @@ const ForgotPasswordView = () => {
           {resetStatusOk === null && (
             <>
               <Typography level='body2' sx={{ mb: 3 }}>
-                Enter your email, and we'll send you a link to get into your
-                account.
+                Enter your email, and we&apos;ll send you a link to get into
+                your account.
               </Typography>
 
               <Typography level='body2' alignSelf={'start'} mb={1}>

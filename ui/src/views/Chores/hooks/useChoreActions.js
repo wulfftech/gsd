@@ -347,7 +347,10 @@ export const useChoreActions = ({
                 },
               })
             })
-          } catch (error) {}
+          } catch (error) {
+            // Reported by the onError handler above; swallow so the rejected
+            // promise does not surface as an unhandled rejection.
+          }
           break
 
         case 'skip':
@@ -624,7 +627,10 @@ export const useChoreActions = ({
                     },
                   })
                 })
-              } catch (error) {}
+              } catch (error) {
+                // Recorded in failedTasks by the onError handler above; swallow
+                // so one failure does not abort the remaining tasks.
+              }
             }
             if (archivedTasks.length > 0) {
               showSuccess({

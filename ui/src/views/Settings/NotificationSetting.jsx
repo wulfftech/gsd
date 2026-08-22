@@ -700,8 +700,8 @@ const NotificationSetting = () => {
                   }}
                 />
                 <Typography mt={0} level='body-xs'>
-                  If you don't know your Chat ID, start chat with userinfobot
-                  and it will send you your Chat ID.{' '}
+                  If you don&apos;t know your Chat ID, start chat with
+                  userinfobot and it will send you your Chat ID.{' '}
                   <a
                     style={{
                       textDecoration: 'underline',

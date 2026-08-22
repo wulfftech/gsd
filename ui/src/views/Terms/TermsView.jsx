@@ -16,10 +16,11 @@ const TermsView = () => {
       </p>
 
       <p>
-        These Terms of Service ("Terms") govern your access to and use of the
-        Donetick task management platform provided by Favoro LLC ("Donetick",
-        "we", "us", or "our"). By accessing or using our services, you agree to
-        be bound by these Terms. If you do not agree to these Terms, you may not
+        These Terms of Service (&quot;Terms&quot;) govern your access to and use
+        of the Donetick task management platform provided by Favoro LLC
+        (&quot;Donetick&quot;, &quot;we&quot;, &quot;us&quot;, or
+        &quot;our&quot;). By accessing or using our services, you agree to be
+        bound by these Terms. If you do not agree to these Terms, you may not
         access or use our services.
       </p>
 
@@ -55,20 +56,22 @@ const TermsView = () => {
       <h2>1. Definitions</h2>
       <ul>
         <li>
-          <strong>"Cloud Service"</strong> refers to the Donetick platform
-          hosted at donetick.com and managed by Favoro LLC
+          <strong>&quot;Cloud Service&quot;</strong> refers to the Donetick
+          platform hosted at donetick.com and managed by Favoro LLC
         </li>
         <li>
-          <strong>"Self-Hosted Service"</strong> refers to the open-source
-          Donetick software deployed on user-controlled infrastructure
+          <strong>&quot;Self-Hosted Service&quot;</strong> refers to the
+          open-source Donetick software deployed on user-controlled
+          infrastructure
         </li>
         <li>
-          <strong>"Content"</strong> means all data, information, tasks, files,
-          and other materials you create, upload, or store using our services
+          <strong>&quot;Content&quot;</strong> means all data, information,
+          tasks, files, and other materials you create, upload, or store using
+          our services
         </li>
         <li>
-          <strong>"Circle"</strong> means a collaborative workspace shared
-          between users for task management
+          <strong>&quot;Circle&quot;</strong> means a collaborative workspace
+          shared between users for task management
         </li>
       </ul>
 
@@ -301,9 +304,10 @@ const TermsView = () => {
 
       <h3>10.1 Disclaimer of Warranties</h3>
       <p>
-        Our services are provided "as is" and "as available" without any
-        warranty of any kind, express or implied, including but not limited to
-        merchantability, fitness for a particular purpose, or non-infringement.
+        Our services are provided &quot;as is&quot; and &quot;as available&quot;
+        without any warranty of any kind, express or implied, including but not
+        limited to merchantability, fitness for a particular purpose, or
+        non-infringement.
       </p>
 
       <h3>10.2 Cloud Service Liability</h3>

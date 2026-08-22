@@ -192,7 +192,7 @@ const DemoCalendar = () => {
             Visual Task Calendar
           </Typography>
           <Typography level='body-lg' textAlign='center' sx={{ mb: 4 }}>
-            Get a bird's-eye view of all your tasks with the interactive
+            Get a bird&apos;s-eye view of all your tasks with the interactive
             calendar. See priority-coded dots for each day, click to view
             detailed task lists, and easily track your upcoming
             responsibilities. The color-coded priority system helps you focus on

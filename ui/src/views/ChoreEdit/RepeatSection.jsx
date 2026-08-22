@@ -315,7 +315,8 @@ const RepeatOnSections = ({
                     Select which occurrences of the selected days:
                   </Typography>
                   <Typography level='body-xs' color='neutral' mb={2}>
-                    Example: "1st Monday" means the first Monday of each month
+                    Example: &quot;1st Monday&quot; means the first Monday of
+                    each month
                   </Typography>
                   <Card>
                     <List

@@ -347,7 +347,7 @@ const MFASettings = () => {
                   onClick={() => setSetupStep(2)}
                   startDecorator={<Smartphone />}
                 >
-                  I've added the account to my app
+                  I&apos;ve added the account to my app
                 </Button>
               </Stack>
             )}
@@ -439,7 +439,7 @@ const MFASettings = () => {
                 </Card>
 
                 <Button color='primary' onClick={closeSetupModal}>
-                  I've saved my backup codes
+                  I&apos;ve saved my backup codes
                 </Button>
               </Stack>
             )}
@@ -550,7 +550,7 @@ const MFASettings = () => {
                 color='primary'
                 onClick={() => setBackupCodesModalOpen(false)}
               >
-                I've saved my backup codes
+                I&apos;ve saved my backup codes
               </Button>
             </Stack>
           </ModalDialog>

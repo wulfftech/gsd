@@ -404,7 +404,7 @@ export const parseRepeatV2 = inputSentence => {
           cleanedSentence: inputSentence.replace(match[0], '').trim(),
         }
 
-      case 'days_of_the_week:nth_occurrence':
+      case 'days_of_the_week:nth_occurrence': {
         const occurrenceText = match[1].toLowerCase()
         const dayName = match[2].toLowerCase()
 
@@ -454,8 +454,8 @@ export const parseRepeatV2 = inputSentence => {
           ],
           cleanedSentence: inputSentence.replace(match[0], '').trim(),
         }
-
-      case 'days_of_the_week:nth_occurrence_multiple':
+      }
+      case 'days_of_the_week:nth_occurrence_multiple': {
         const occurrencesText = match[1].toLowerCase()
         const dayName2 = match[2].toLowerCase()
 
@@ -513,6 +513,7 @@ export const parseRepeatV2 = inputSentence => {
           ],
           cleanedSentence: inputSentence.replace(match[0], '').trim(),
         }
+      }
     }
   }
   return {

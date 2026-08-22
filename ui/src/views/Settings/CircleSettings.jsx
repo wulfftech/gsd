@@ -125,8 +125,8 @@ const CircleSettings = () => {
         <Typography level='body-md'>
           Your account is automatically connected to a Circle when you create or
           join one. Easily invite friends by sharing the unique Circle code or
-          link below. You'll receive a notification below when someone requests
-          to join your Circle.
+          link below. You&apos;ll receive a notification below when someone
+          requests to join your Circle.
         </Typography>
         <Typography level='title-sm' mb={-1}>
           {userCircles[0]?.userRole === 'member'
@@ -430,7 +430,7 @@ const CircleSettings = () => {
         <Divider> or </Divider>
 
         <Typography level='body-md'>
-          if want to join someone else's Circle? Ask them for their unique
+          if want to join someone else&apos;s Circle? Ask them for their unique
           Circle code or join link. Enter the code below to join their Circle.
         </Typography>
 

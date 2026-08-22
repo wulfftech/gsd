@@ -16,7 +16,7 @@ function InfoCard() {
             }}
           />
         </Box>
-        <Typography level='title-md'>You've completed</Typography>
+        <Typography level='title-md'>You&apos;ve completed</Typography>
         <Typography level='body-sm'>12345 Chores</Typography>
       </CardContent>
     </Card>

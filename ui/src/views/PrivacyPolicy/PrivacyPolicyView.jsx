@@ -5,11 +5,11 @@ const PrivacyPolicyView = () => {
     <div>
       <h1>Privacy Policy</h1>
       <p>
-        Favoro LLC ("we," "us," or "our") operates the Donetick application and
-        website (collectively, the "Service"). This Privacy Policy informs you
-        of our policies regarding the collection, use, and disclosure of
-        personal data when you use our Service and the choices you have
-        associated with that data.
+        Favoro LLC (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates
+        the Donetick application and website (collectively, the
+        &quot;Service&quot;). This Privacy Policy informs you of our policies
+        regarding the collection, use, and disclosure of personal data when you
+        use our Service and the choices you have associated with that data.
       </p>
       <h2>Information We Collect</h2>
       <p>
@@ -76,7 +76,7 @@ const PrivacyPolicyView = () => {
         promotional emails by following the unsubscribe instructions included in
         those emails.
       </p>
-      <h2>Children's Privacy</h2>
+      <h2>Children&apos;s Privacy</h2>
       <p>
         Our Service is not intended for children under 13 years of age. We do
         not knowingly collect personal data from children under 13. If you are a
@@ -87,7 +87,8 @@ const PrivacyPolicyView = () => {
       <p>
         We may update our Privacy Policy from time to time. We will notify you
         of any changes by posting the new Privacy Policy on this page and
-        updating the "Effective Date" at the top of this Privacy Policy.
+        updating the &quot;Effective Date&quot; at the top of this Privacy
+        Policy.
       </p>
       <h2>Contact Us</h2>
       <p>

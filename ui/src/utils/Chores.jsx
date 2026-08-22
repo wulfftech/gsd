@@ -33,10 +33,11 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
   // sort by priority then due date:
   chores.sort(ChoreSorter)
   var groups = []
+  let groupRaw
   switch (groupBy) {
     case 'default':
       // same as due_date but hide empty groups: and if status is 1 or 2 have seperated catigory as Started:
-      var groupRaw = {
+      groupRaw = {
         PendingApproval: [],
         Started: [],
         Today: [],
@@ -149,7 +150,7 @@ export const ChoresGrouper = (groupBy, chores, filter) => {
       break
 
     case 'due_date':
-      var groupRaw = {
+      groupRaw = {
         Today: [],
         Tomorrow: [],
         'Next 7 Days': [],

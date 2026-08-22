@@ -78,7 +78,8 @@ const JoinCircleView = () => {
                 }}
               />
               <Typography level='body-md' alignSelf={'center'}>
-                Joining will give you access to the circle's chores and members.
+                Joining will give you access to the circle&apos;s chores and
+                members.
               </Typography>
               <Typography level='body-md' alignSelf={'center'}>
                 You can leave the circle later from you Settings page.

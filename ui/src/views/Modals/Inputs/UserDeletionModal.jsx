@@ -296,7 +296,7 @@ function UserDeletionModal({ isOpen, onClose, userProfile }) {
       </FormControl>
 
       <FormControl sx={{ mb: 3 }}>
-        <FormLabel>Type "DELETE" to confirm</FormLabel>
+        <FormLabel>Type &quot;DELETE&quot; to confirm</FormLabel>
         <Input
           value={confirmation}
           onChange={e => setConfirmation(e.target.value)}

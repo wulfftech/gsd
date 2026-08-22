@@ -84,8 +84,8 @@ const NativeCancelSubscriptionModal = ({ isOpen, onClose }) => {
             <strong>Important:</strong> You must cancel your subscription
             through the same platform where you originally subscribed. If you
             subscribed through the iOS App Store or Google Play Store (even if
-            you're now using the web/desktop version), you must cancel through
-            that original platform using the instructions above.
+            you&apos;re now using the web/desktop version), you must cancel
+            through that original platform using the instructions above.
           </Typography>
         </Box>
 
@@ -96,7 +96,7 @@ const NativeCancelSubscriptionModal = ({ isOpen, onClose }) => {
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Button size='lg' onClick={onClose} variant='outlined' fullWidth>
-            I'll cancel from my app store
+            I&apos;ll cancel from my app store
           </Button>
           <Button
             size='lg'

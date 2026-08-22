@@ -89,8 +89,8 @@ const ThingTriggerSection = ({
       </Typography>
       {things?.length === 0 && (
         <Typography level='body-sm'>
-          it's look like you don't have any things yet, create a thing to
-          trigger a task when the state changes.
+          it&apos;s look like you don&apos;t have any things yet, create a thing
+          to trigger a task when the state changes.
           <Button
             startDecorator={<Widgets />}
             size='sm'

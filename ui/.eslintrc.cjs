@@ -26,6 +26,13 @@ module.exports = {
 
     'tailwindcss',
   ],
+  overrides: [
+    {
+      // Build and tooling scripts run under Node, not in the browser.
+      files: ['bump-version.js', 'vite.config.js'],
+      env: { node: true, browser: false },
+    },
+  ],
   rules: {
     'react-refresh/only-export-components': [
       'warn',

@@ -75,7 +75,7 @@ export const useSSE = () => {
 
         // Handle different event types and update React Query cache accordingly
         switch (eventData.type) {
-          case 'chore.created':
+          case 'chore.created': {
             showNotification({
               type: 'info',
               title: 'New Task Created',
@@ -97,6 +97,7 @@ export const useSSE = () => {
               return { res: [newChore, ...oldData.res] }
             })
             break
+          }
           case 'chore.updated':
           case 'chore.completed':
           case 'chore.status':

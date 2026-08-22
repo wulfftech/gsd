@@ -126,10 +126,10 @@ const DemoMyChore = () => {
           <Typography level='body-lg' textAlign='center' sx={{ mb: 4 }}>
             Main view prioritize tasks due today, followed by overdue ones, and
             finally, future tasks or those without due dates. With Donetick, you
-            can view all the tasks you've created (whether assigned to you or
-            not) as well as tasks assigned to you by others. Quickly mark them
-            as done with just one click, ensuring a smooth and efficient task
-            management experience.
+            can view all the tasks you&apos;ve created (whether assigned to you
+            or not) as well as tasks assigned to you by others. Quickly mark
+            them as done with just one click, ensuring a smooth and efficient
+            task management experience.
           </Typography>
         </Card>
       </Grid>
