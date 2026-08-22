@@ -48,15 +48,15 @@ const DemoScheduler = () => {
             Advanced Scheduling and Automation
           </Typography>
           <Typography level='body-lg' textAlign='center' sx={{ mb: 4 }}>
-            Scheduling is a crucial aspect of managing tasks and chores.
-            Donetick offers basic scheduling options, such as recurring tasks
-            daily, weekly, or yearly, as well as more customizable schedules
-            like specific days of the week or month. For those unsure of exact
+            Scheduling is a crucial aspect of managing tasks and chores. GSD
+            offers basic scheduling options, such as recurring tasks daily,
+            weekly, or yearly, as well as more customizable schedules like
+            specific days of the week or month. For those unsure of exact
             frequencies, the adaptive scheduling feature averages based on how
-            often you mark a task as completed. Additionally, Donetick supports
+            often you mark a task as completed. Additionally, GSD supports
             automation by linking tasks with triggers via API. When specific
-            conditions are met, Donetick’s Things feature will automatically
-            initiate the task, streamlining your workflow.
+            conditions are met, GSD’s Things feature will automatically initiate
+            the task, streamlining your workflow.
           </Typography>
         </Card>
       </Grid>

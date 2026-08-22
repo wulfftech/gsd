@@ -12,7 +12,7 @@ const PricingSection = () => {
   // eslint-disable-next-line no-unused-vars
   const FEATURES_PREMIUM = [
     ['All Basic Features', <CheckRounded color='primary' />],
-    ['Hosted on DoneTick servers', <CheckRounded color='primary' />],
+    ['Hosted on GSD servers', <CheckRounded color='primary' />],
     ['Up to 8 Circle Members', <CheckRounded color='primary' />],
     [
       'Notification through Telegram (Discord coming soon)',
@@ -40,7 +40,7 @@ const PricingSection = () => {
     {
       title: 'Basic',
       description:
-        'Hosted on Donetick servers, supports up to 2 circle members and includes all the features of the free plan.',
+        'Hosted on GSD servers, supports up to 2 circle members and includes all the features of the free plan.',
       price: 0,
       previousPrice: 0,
       interval: 'month',
@@ -52,7 +52,7 @@ const PricingSection = () => {
       title: 'Plus',
       description:
         // 'Supports up to 8 circle members and includes all the features of the Basic plan.',
-        'Hosted on Donetick servers, supports up to 8 circle members and includes all the features of the Basic plan.',
+        'Hosted on GSD servers, supports up to 8 circle members and includes all the features of the Basic plan.',
       price: 30.0,
       //   previousPrice: 76.89,
       interval: 'year',

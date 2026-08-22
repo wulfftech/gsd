@@ -177,11 +177,11 @@ const DemoAssignee = () => {
           </Typography>
           <Typography level='body-lg' textAlign='center' sx={{ mb: 4 }}>
             Whether you’re a solo user managing personal tasks or coordinating
-            chores with others, Donetick provides robust assignment options.
-            Assign tasks to different people and choose specific rotation
-            strategies, such as assigning tasks based on who completed the most
-            or least, randomly rotating assignments, or sticking with the last
-            assigned person.
+            chores with others, GSD provides robust assignment options. Assign
+            tasks to different people and choose specific rotation strategies,
+            such as assigning tasks based on who completed the most or least,
+            randomly rotating assignments, or sticking with the last assigned
+            person.
           </Typography>
         </Card>
       </Grid>

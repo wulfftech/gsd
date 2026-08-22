@@ -135,10 +135,9 @@ const GettingStarted = () => {
   const navigate = useNavigate()
   const information = [
     {
-      title: 'Donetick Web',
+      title: 'GSD Web',
       icon: <Cloud />,
-      description:
-        'The easiest way! Just create account and start using Donetick',
+      description: 'The easiest way! Just create account and start using GSD',
       button: (
         <Button
           size='lg'
@@ -155,7 +154,7 @@ const GettingStarted = () => {
     {
       title: 'Selfhosted',
       icon: <Storage />,
-      description: 'Download the binary and manage your own Donetick instance',
+      description: 'Download the binary and manage your own GSD instance',
       button: (
         <Button
           size='lg'
@@ -176,7 +175,7 @@ const GettingStarted = () => {
       title: 'Hassio Addon',
       icon: <AddHome />,
       description:
-        'Have Home Assistant? Install Donetick as a Home Assistant Addon with single click',
+        'Have Home Assistant? Install GSD as a Home Assistant Addon with single click',
       button: (
         <Button
           size='lg'
@@ -278,8 +277,8 @@ const GettingStarted = () => {
               mx: 'auto',
             }}
           >
-            Get the full Donetick experience with notifications, realtime
-            updates, and seamless task management on the go
+            Get the full GSD experience with notifications, realtime updates,
+            and seamless task management on the go
           </Typography>
 
           <Box

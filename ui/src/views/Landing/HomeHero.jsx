@@ -49,17 +49,7 @@ const HomeHero = () => {
           data-aos-anchor='[data-aos-id-hero]'
           data-aos='fade-up'
         >
-          Done
-        </span>
-        <span
-          data-aos-delay={100 * 3}
-          data-aos-anchor='[data-aos-id-hero]'
-          data-aos='fade-up'
-          style={{
-            color: '#06b6d4',
-          }}
-        >
-          tick
+          GSD
         </span>
       </Typography>
     </Box>

@@ -100,12 +100,7 @@ const Footer = () => {
           <Grid item xs={12} md={4}>
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <img
-                  src={LogoSVG}
-                  alt='Donetick Logo'
-                  width='48px'
-                  height='48px'
-                />
+                <img src={LogoSVG} alt='GSD Logo' width='48px' height='48px' />
                 <Typography
                   level='h4'
                   sx={{
@@ -115,7 +110,7 @@ const Footer = () => {
                     color: 'text.primary',
                   }}
                 >
-                  Done<span style={{ color: '#06b6d4' }}>tick</span>
+                  GSD
                 </Typography>
               </Box>
               <Typography
@@ -326,7 +321,7 @@ const Footer = () => {
               gap: 1,
             }}
           >
-            © {currentYear} Donetick. All rights reserved.
+            © {currentYear} GSD. All rights reserved.
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
