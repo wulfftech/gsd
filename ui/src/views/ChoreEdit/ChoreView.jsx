@@ -77,14 +77,28 @@ import SubTasks from '../components/SubTask.jsx'
 import TimePassedCard from './TimePassedCard.jsx'
 import TimerSplitButton from './TimerSplitButton.jsx'
 
-const ChoreView = () => {
+const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
   const { t } = useTranslation('chores')
   const { fmt } = useLocalization()
   const [chore, setChore] = useState({})
   const navigate = useNavigate()
   const [performers, setPerformers] = useState([])
   const [infoCards, setInfoCards] = useState([])
-  const { choreId } = useParams()
+  const { choreId: choreIdParam } = useParams()
+  // Normalize to a string so the useChoreDetails cache key (['choreDetails', choreId])
+  // always matches what useSSE.js invalidates on chore.updated / chore.status events,
+  // regardless of whether choreId arrives as a route param (already a string) or as a
+  // prop from the modal wrapper (which may be a number, e.g. chore.id from the API).
+  const choreId =
+    choreIdProp !== undefined && choreIdProp !== null
+      ? String(choreIdProp)
+      : choreIdParam
+  // In modal mode, close the dialog before navigating away so it isn't left open
+  // behind the destination page.
+  const navigateAndClose = path => {
+    onClose?.()
+    navigate(path)
+  }
   const [note, setNote] = useState(null)
   const queryClient = useQueryClient()
   const { showSuccess, showError, showUndo } = useNotification()
@@ -465,18 +479,36 @@ const ChoreView = () => {
     // while loading the chore or circle members, return a loading state
     return <LoadingComponent />
   }
+
+  // When rendered inside a modal, drop the page-level Container chrome (in
+  // particular the fixed maxHeight, which fights the dialog's own sizing) and
+  // render into a plain Box that just flows to fit the modal body.
+  const RootContainer = isModal ? Box : Container
+  const rootContainerProps = isModal
+    ? {
+        sx: {
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          // Keep the dialog roughly the width the standalone page had
+          // (Container maxWidth='sm'); full-bleed inside a bottom sheet.
+          width: { xs: '100%', sm: 560 },
+          maxWidth: '100%',
+        },
+      }
+    : {
+        maxWidth: 'sm',
+        sx: {
+          display: 'flex',
+          flexDirection: 'column',
+          // space between :
+          justifyContent: 'space-between',
+          // max height of the container:
+          maxHeight: 'calc(100vh - 500px)',
+        },
+      }
   return (
-    <Container
-      maxWidth='sm'
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        // space between :
-        justifyContent: 'space-between',
-        // max height of the container:
-        maxHeight: 'calc(100vh - 500px)',
-      }}
-    >
+    <RootContainer {...rootContainerProps}>
       <Box
         sx={{
           display: 'flex',
@@ -561,7 +593,9 @@ const ChoreView = () => {
                     handleChoreStart()
                   }
                 }}
-                onShowDetails={() => navigate(`/chores/${choreId}/timer`)}
+                onShowDetails={() =>
+                  navigateAndClose(`/chores/${choreId}/timer`)
+                }
               />
             </Grid>
           )}
@@ -703,7 +737,7 @@ const ChoreView = () => {
             variant='plain'
             fullWidth
             onClick={() => {
-              navigate(`/chores/${choreId}/history`)
+              navigateAndClose(`/chores/${choreId}/history`)
             }}
             sx={{
               flexDirection: 'column',
@@ -728,7 +762,7 @@ const ChoreView = () => {
               p: 1,
             }}
             onClick={() => {
-              navigate(`/chores/${choreId}/edit`)
+              navigateAndClose(`/chores/${choreId}/edit`)
             }}
           >
             <Edit />
@@ -1114,7 +1148,9 @@ const ChoreView = () => {
                     handleChoreStart()
                   }
                 }}
-                onShowDetails={() => navigate(`/chores/${choreId}/timer`)}
+                onShowDetails={() =>
+                  navigateAndClose(`/chores/${choreId}/timer`)
+                }
                 onResetTimer={handleResetTimer}
                 onClearAllTime={handleClearAllTime}
                 fullWidth
@@ -1148,7 +1184,7 @@ const ChoreView = () => {
         <NoteViewerModal config={noteViewerConfig} />
         <PerformerPickerModal config={performerPickerConfig} />
       </Card>
-    </Container>
+    </RootContainer>
   )
 }
 
