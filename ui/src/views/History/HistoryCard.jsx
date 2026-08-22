@@ -19,7 +19,11 @@ import { useLocalization } from '../../contexts/LocalizationContext'
 import { TASK_COLOR } from '../../utils/Colors.jsx'
 
 const getCompletedChip = historyEntry => {
-  if (historyEntry.status === 0 || historyEntry.status === 5 || historyEntry.status === 6) {
+  if (
+    historyEntry.status === 0 ||
+    historyEntry.status === 5 ||
+    historyEntry.status === 6
+  ) {
     return null
   }
 
@@ -90,10 +94,9 @@ const formatTime = seconds => {
  * Compact HistoryCard component - content only
  */
 const HistoryCard = ({
-  allHistory,
   performers,
   historyEntry,
-  index,
+
   onToggleActions,
   onViewNote,
 }) => {
@@ -101,6 +104,9 @@ const HistoryCard = ({
   const performer = performers.find(p => p.userId === historyEntry.completedBy)
   const assignedTo = performers.find(p => p.userId === historyEntry.assignedTo)
 
+  // TODO: dead code -- never called.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const formatTimeDifference = (startDate, endDate) => {
     const diffInMinutes = moment(startDate).diff(endDate, 'minutes')
     let timeValue = diffInMinutes

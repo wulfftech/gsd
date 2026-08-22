@@ -49,13 +49,13 @@ type UserPasswordReset struct {
 }
 
 type APIToken struct {
-	ID        int        `json:"id" gorm:"primary_key"`                                                  // Unique identifier
-	Name      string     `json:"name" gorm:"column:name;uniqueIndex:idx_user_token_name"`                // Name (unique per user)
-	UserID    int        `json:"userId" gorm:"column:user_id;index;uniqueIndex:idx_user_token_name"`    // Index on userID
-	Token     string     `json:"token" gorm:"column:token;index"`                                        // Index on token
-	CreatedAt time.Time  `json:"createdAt" gorm:"column:created_at"`                                     // Created at
-	ExpiresAt *time.Time `json:"expiresAt" gorm:"column:expires_at"`                                     // Expiration time (optional)
-	LastUsedAt *time.Time `json:"lastUsedAt" gorm:"column:last_used_at"`                                 // Last used time (optional)
+	ID         int        `json:"id" gorm:"primary_key"`                                              // Unique identifier
+	Name       string     `json:"name" gorm:"column:name;uniqueIndex:idx_user_token_name"`            // Name (unique per user)
+	UserID     int        `json:"userId" gorm:"column:user_id;index;uniqueIndex:idx_user_token_name"` // Index on userID
+	Token      string     `json:"token" gorm:"column:token;index"`                                    // Index on token
+	CreatedAt  time.Time  `json:"createdAt" gorm:"column:created_at"`                                 // Created at
+	ExpiresAt  *time.Time `json:"expiresAt" gorm:"column:expires_at"`                                 // Expiration time (optional)
+	LastUsedAt *time.Time `json:"lastUsedAt" gorm:"column:last_used_at"`                              // Last used time (optional)
 }
 
 type UserNotificationTarget struct {

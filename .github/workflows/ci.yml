@@ -27,6 +27,15 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # Pinned to v1: .golangci.yaml at the repo root is in the v1 schema, and
+      # golangci-lint v2 rejects it. Bumping to v2 means migrating that file
+      # (`golangci-lint migrate`), which is a separate change.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.8
+          args: --timeout=5m
+
       - name: Test
         run: go test ./...
 
@@ -44,5 +53,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'ui/package-lock.json'
 
-      - name: Install and Build
-        run: cd ui && npm ci && npm run build
+      - name: Install
+        run: cd ui && npm ci
+
+      - name: Lint
+        run: cd ui && npm run lint
+
+      - name: Build
+        run: cd ui && npm run build

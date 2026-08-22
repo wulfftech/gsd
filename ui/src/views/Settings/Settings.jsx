@@ -67,7 +67,7 @@ const Settings = () => {
   const [circleInviteCode, setCircleInviteCode] = useState('')
   const [circleMembers, setCircleMembers] = useState([])
   const [webhookURL, setWebhookURL] = useState(null)
-  const [webhookError, setWebhookError] = useState(null)
+  const [webhookError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -242,8 +242,8 @@ const Settings = () => {
         <Typography level='body-md'>
           Your account is automatically connected to a Circle when you create or
           join one. Easily invite friends by sharing the unique Circle code or
-          link below. You'll receive a notification below when someone requests
-          to join your Circle.
+          link below. You&apos;ll receive a notification below when someone
+          requests to join your Circle.
         </Typography>
         <Typography level='title-sm' mb={-1}>
           {userCircles[0]?.userRole === 'member'
@@ -344,8 +344,7 @@ const Settings = () => {
                   </Typography>
                 ) : (
                   <Typography level='body-sm' color='danger'>
-                    Request to join{' '}
-                    {fmt.date(member.updatedAt)}
+                    Request to join {fmt.date(member.updatedAt)}
                   </Typography>
                 )}
               </Box>
@@ -447,7 +446,9 @@ const Settings = () => {
                                   message: 'Removed member successfully',
                                 })
                                 // Invalidate and refetch circle-related queries
-                                queryClient.invalidateQueries(['allCircleMembers'])
+                                queryClient.invalidateQueries([
+                                  'allCircleMembers',
+                                ])
                                 queryClient.refetchQueries(['allCircleMembers'])
                                 // Update local state immediately
                                 setCircleMembers(prevMembers =>
@@ -550,7 +551,7 @@ const Settings = () => {
         <Divider> or </Divider>
 
         <Typography level='body-md'>
-          if want to join someone else's Circle? Ask them for their unique
+          if want to join someone else&apos;s Circle? Ask them for their unique
           Circle code or join link. Enter the code below to join their Circle.
         </Typography>
 

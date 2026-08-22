@@ -15,13 +15,13 @@ type Reward struct {
 }
 
 type RewardRedemption struct {
-	ID          int       `json:"id" gorm:"primary_key"`
-	RewardID    int       `json:"rewardId" gorm:"column:reward_id;index"`
-	CircleID    int       `json:"circleId" gorm:"column:circle_id;index"`
-	UserID      int       `json:"userId" gorm:"column:user_id;index"`
-	Points      int       `json:"points" gorm:"column:points"`
-	Status      string    `json:"status" gorm:"column:status;default:pending"` // pending | fulfilled
-	RedeemedAt  time.Time `json:"redeemedAt" gorm:"column:redeemed_at"`
+	ID          int        `json:"id" gorm:"primary_key"`
+	RewardID    int        `json:"rewardId" gorm:"column:reward_id;index"`
+	CircleID    int        `json:"circleId" gorm:"column:circle_id;index"`
+	UserID      int        `json:"userId" gorm:"column:user_id;index"`
+	Points      int        `json:"points" gorm:"column:points"`
+	Status      string     `json:"status" gorm:"column:status;default:pending"` // pending | fulfilled
+	RedeemedAt  time.Time  `json:"redeemedAt" gorm:"column:redeemed_at"`
 	FulfilledAt *time.Time `json:"fulfilledAt" gorm:"column:fulfilled_at"`
 }
 

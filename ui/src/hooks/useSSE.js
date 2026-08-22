@@ -75,7 +75,7 @@ export const useSSE = () => {
 
         // Handle different event types and update React Query cache accordingly
         switch (eventData.type) {
-          case 'chore.created':
+          case 'chore.created': {
             showNotification({
               type: 'info',
               title: 'New Task Created',
@@ -97,6 +97,7 @@ export const useSSE = () => {
               return { res: [newChore, ...oldData.res] }
             })
             break
+          }
           case 'chore.updated':
           case 'chore.completed':
           case 'chore.status':
@@ -114,10 +115,13 @@ export const useSSE = () => {
             const updatedChore = eventData.data.chore
 
             // Update individual chore cache
-            queryClient.setQueryData(['chore', String(updatedChore.id)], oldData => {
-              if (!oldData) return { res: updatedChore }
-              return { res: { ...oldData.res, ...updatedChore } }
-            })
+            queryClient.setQueryData(
+              ['chore', String(updatedChore.id)],
+              oldData => {
+                if (!oldData) return { res: updatedChore }
+                return { res: { ...oldData.res, ...updatedChore } }
+              },
+            )
 
             // If chore update then also refetch chore details:
             if (
@@ -264,6 +268,9 @@ export const useSSE = () => {
   }, [])
 
   // Centralized reconnect scheduling function to prevent duplicate scheduling
+  // TODO: dead code -- never called, so a dropped SSE stream never reconnects.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const scheduleReconnect = useCallback((delay, reason) => {
     // Prevent duplicate scheduling
     if (isReconnectScheduledRef.current) {
@@ -644,7 +651,7 @@ export const useSSE = () => {
     return () => {
       disconnect()
     }
-  }, [isAuthenticated]) // Fixed: Added isAuthenticated dependency
+  }, [isAuthenticated, connect, disconnect])
 
   // Cleanup timeouts on unmount
   useEffect(() => {

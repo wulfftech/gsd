@@ -189,7 +189,17 @@ export const useKeyboardShortcuts = ({
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isMultiSelectMode, selectedChores.size, addTaskModalOpen])
+  }, [
+    isMultiSelectMode,
+    selectedChores,
+    addTaskModalOpen,
+    searchTerm?.length,
+    searchFilter,
+    filteredChores,
+    choreSections,
+    openChoreSections,
+    handlers,
+  ])
 
   return { showKeyboardShortcuts }
 }

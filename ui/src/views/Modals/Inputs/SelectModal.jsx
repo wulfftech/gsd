@@ -28,7 +28,7 @@ function SelectModal({
       title={title}
     >
       <Select placeholder={placeholder}>
-        {options.map((item, index) => (
+        {options.map(item => (
           <Option
             value={item.id}
             key={item[displayKey]}

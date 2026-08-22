@@ -1,5 +1,5 @@
 import { Chip, List, ListItem, ListItemButton, Textarea } from '@mui/joy'
-import React, { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const AutocompleteInput = ({ options, ref, value, onChange, ...props }) => {
   const [filteredOptions, setFilteredOptions] = useState([])
@@ -56,23 +56,26 @@ const AutocompleteInput = ({ options, ref, value, onChange, ...props }) => {
     setTriggerKey(null)
   }
 
-  const handleClickOutside = event => {
-    if (
-      menuRef.current &&
-      !menuRef.current.contains(event.target) &&
-      ref.current &&
-      !ref.current.contains(event.target)
-    ) {
-      setMenuVisible(false)
-    }
-  }
+  const handleClickOutside = useCallback(
+    event => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target) &&
+        ref.current &&
+        !ref.current.contains(event.target)
+      ) {
+        setMenuVisible(false)
+      }
+    },
+    [ref],
+  )
 
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [])
+  }, [handleClickOutside])
 
   return (
     <div style={{ position: 'relative' }}>

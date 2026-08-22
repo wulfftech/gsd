@@ -65,7 +65,7 @@ const ThingTriggerSection = ({
       setCondition(selected.condition)
       setTriggerState(selected.triggerState)
     }
-  }, [things])
+  }, [things, selected])
 
   useEffect(() => {
     if (selectedThing && triggerState) {
@@ -80,7 +80,7 @@ const ThingTriggerSection = ({
     } else {
       onValidate(false)
     }
-  }, [selectedThing, condition, triggerState])
+  }, [selectedThing, condition, triggerState, onTriggerUpdate, onValidate])
 
   return (
     <Card sx={{ mt: 1 }}>
@@ -89,8 +89,8 @@ const ThingTriggerSection = ({
       </Typography>
       {things?.length === 0 && (
         <Typography level='body-sm'>
-          it's look like you don't have any things yet, create a thing to
-          trigger a task when the state changes.
+          it&apos;s look like you don&apos;t have any things yet, create a thing
+          to trigger a task when the state changes.
           <Button
             startDecorator={<Widgets />}
             size='sm'

@@ -77,6 +77,9 @@ const AdvancedFilterBuilder = ({
       setConditions([{ type: 'assignee', operator: 'is', value: [] }])
       setError('')
     }
+    // `existedFilters` only seeds the default colour when the dialog opens.
+    // Making it a dependency would reset the form mid-edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingFilter, isOpen])
 
   const previewChores = useMemo(() => {

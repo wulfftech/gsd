@@ -24,6 +24,9 @@ const remove = className => {
 // TODO: Update the interval to at 60 minutes
 const intervalMS = 5 * 60 * 1000 // 5 minutes
 
+// TODO: dead code -- never called, so OpenReplay session recording is never initialised.
+// Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+// eslint-disable-next-line no-unused-vars
 const startOpenReplay = () => {
   if (!import.meta.env.VITE_OPENREPLAY_PROJECT_KEY) return
   const tracker = new Tracker({

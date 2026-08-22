@@ -84,9 +84,7 @@ const generateSchedulePreview = (metadata, formatTimeFn) => {
     .map(day => day.charAt(0).toUpperCase() + day.slice(1, 3))
     .join(', ')
 
-  const timeStr = metadata.time
-    ? formatTimeFn(metadata.time)
-    : '6:00 PM'
+  const timeStr = metadata.time ? formatTimeFn(metadata.time) : '6:00 PM'
 
   if (metadata.weekPattern === 'every_week' || !metadata.weekPattern) {
     return `Every ${dayNames} at ${timeStr}`
@@ -317,7 +315,8 @@ const RepeatOnSections = ({
                     Select which occurrences of the selected days:
                   </Typography>
                   <Typography level='body-xs' color='neutral' mb={2}>
-                    Example: "1st Monday" means the first Monday of each month
+                    Example: &quot;1st Monday&quot; means the first Monday of
+                    each month
                   </Typography>
                   <Card>
                     <List

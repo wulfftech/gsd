@@ -42,6 +42,9 @@ import CreateThingModal from '../Modals/Inputs/CreateThingModal'
 import EditThingStateModal from '../Modals/Inputs/EditThingState'
 
 const ThingCardContent = ({ thing, onCardClick, onToggleActions }) => {
+  // TODO: dead code -- never called.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const getThingIcon = type => {
     if (type === 'text') {
       return <Flip />

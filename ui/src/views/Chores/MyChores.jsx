@@ -88,7 +88,7 @@ import {
 } from './LocalNotificationScheduler'
 import NotificationAccessSnackbar from './NotificationAccessSnackbar'
 import Sidepanel from './Sidepanel'
-import { INSIGHT_FILTER_DEFS } from './SmartInsightsCard'
+import { INSIGHT_FILTER_DEFS } from './insightFilters'
 import SortAndGrouping from './SortAndGrouping'
 
 const MyChores = () => {
@@ -120,7 +120,7 @@ const MyChores = () => {
   const [choreSections, setChoreSections] = useState([])
   const [showSearchFilter, setShowSearchFilter] = useState(false)
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false)
-  const [taskInputFocus, setTaskInputFocus] = useState(0)
+  const [taskInputFocus] = useState(0)
   const searchInputRef = useRef(null)
   const [searchInputFocus, setSearchInputFocus] = useState(0)
   const [selectedChoreSection, setSelectedChoreSection] = useState(
@@ -172,7 +172,6 @@ const MyChores = () => {
     setSearchTerm,
     setSearchFilter,
     setSelectedChoreFilterWithCache,
-    clearFilters,
   } = useChoreFilters({
     chores,
     selectedProject,
@@ -190,8 +189,7 @@ const MyChores = () => {
     getSelectedChoresData,
   } = useMultiSelect()
 
-  const { activeModal, modalChore, modalData, openModal, closeModal } =
-    useChoreModals()
+  const { activeModal, modalChore, openModal, closeModal } = useChoreModals()
 
   const {
     savedFilters,
@@ -208,7 +206,6 @@ const MyChores = () => {
     updateFilter,
     deleteFilter,
     pinFilter,
-    createFilterFromCurrentState,
     hasProjectConditions,
     hasFilterApplied,
   } = useCustomFilters(
@@ -407,12 +404,29 @@ const MyChores = () => {
     }
   }, [processedSections])
 
+  const handleFilterMenuClose = useCallback(() => {
+    setAnchorEl(null)
+  }, [])
+
+  const handleMenuOutsideClick = useCallback(
+    event => {
+      if (
+        anchorEl &&
+        !anchorEl.contains(event.target) &&
+        !menuRef.current.contains(event.target)
+      ) {
+        handleFilterMenuClose()
+      }
+    },
+    [anchorEl, handleFilterMenuClose],
+  )
+
   useEffect(() => {
     document.addEventListener('mousedown', handleMenuOutsideClick)
     return () => {
       document.removeEventListener('mousedown', handleMenuOutsideClick)
     }
-  }, [anchorEl])
+  }, [handleMenuOutsideClick])
 
   useEffect(() => {
     if (searchInputFocus > 0 && searchInputRef.current) {
@@ -436,12 +450,6 @@ const MyChores = () => {
       }
     }
   }, [
-    searchParams,
-    projects,
-    projectsWithDefault,
-    selectedProject,
-    setSelectedProjectWithCache,
-
     searchParams,
     projects,
     projectsWithDefault,
@@ -533,6 +541,7 @@ const MyChores = () => {
     chores,
     searchFilter,
     activeFilterId,
+    tempFilterMeta?.id,
     savedFilters,
     applyCustomFilter,
     applyTempFilter,
@@ -572,7 +581,7 @@ const MyChores = () => {
         { replace: true },
       )
     }
-  }, [tempFilterMeta?.id, searchParams])
+  }, [tempFilterMeta?.id, searchParams, Navigate])
 
   const {
     handleChoreAction,
@@ -642,22 +651,9 @@ const MyChores = () => {
     },
   })
 
-  const handleMenuOutsideClick = event => {
-    if (
-      anchorEl &&
-      !anchorEl.contains(event.target) &&
-      !menuRef.current.contains(event.target)
-    ) {
-      handleFilterMenuClose()
-    }
-  }
   const handleFilterMenuOpen = event => {
     event.preventDefault()
     setAnchorEl(event.currentTarget)
-  }
-
-  const handleFilterMenuClose = () => {
-    setAnchorEl(null)
   }
 
   const handleLabelFiltering = chipClicked => {
@@ -725,6 +721,9 @@ const MyChores = () => {
     [chores],
   )
 
+  // TODO: dead code -- index is built every render and never queried.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const fuse = useMemo(
     () => new Fuse(processedChoresForSearch, searchOptions),
     [processedChoresForSearch, searchOptions],
@@ -1564,21 +1563,20 @@ const MyChores = () => {
               )}
             </Box>
           )}
-        {searchTerm?.length > 0 &&
-          viewMode !== 'calendar' && (
-            <ChoreListView
-              chores={getFilteredChores}
-              viewMode={viewMode}
-              membersData={membersData}
-              userLabels={userLabels}
-              handleLabelFiltering={handleLabelFiltering}
-              handleChoreAction={handleChoreAction}
-              isMultiSelectMode={isMultiSelectMode}
-              selectedChores={selectedChores}
-              toggleChoreSelection={toggleChoreSelection}
-              onChoreOpen={setOpenedChore}
-            />
-          )}
+        {searchTerm?.length > 0 && viewMode !== 'calendar' && (
+          <ChoreListView
+            chores={getFilteredChores}
+            viewMode={viewMode}
+            membersData={membersData}
+            userLabels={userLabels}
+            handleLabelFiltering={handleLabelFiltering}
+            handleChoreAction={handleChoreAction}
+            isMultiSelectMode={isMultiSelectMode}
+            selectedChores={selectedChores}
+            toggleChoreSelection={toggleChoreSelection}
+            onChoreOpen={setOpenedChore}
+          />
+        )}
         {viewMode === 'calendar' && (
           <>
             {/* Summary Chips when no date selected */}

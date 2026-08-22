@@ -203,9 +203,7 @@ const RewardsView = () => {
                         height: '100%',
                         opacity: canAfford ? 1 : 0.6,
                         transition: 'box-shadow 0.2s',
-                        '&:hover': canAfford
-                          ? { boxShadow: 'md' }
-                          : undefined,
+                        '&:hover': canAfford ? { boxShadow: 'md' } : undefined,
                       }}
                     >
                       <CardContent>
@@ -276,7 +274,9 @@ const RewardsView = () => {
           {rewardsLoading ? (
             <Typography>Loading…</Typography>
           ) : rewards.length === 0 ? (
-            <Typography sx={{ color: 'neutral.500', textAlign: 'center', py: 4 }}>
+            <Typography
+              sx={{ color: 'neutral.500', textAlign: 'center', py: 4 }}
+            >
               No rewards defined yet
             </Typography>
           ) : (
@@ -307,7 +307,11 @@ const RewardsView = () => {
                       )}
                     </Box>
                     <Stack direction='row' alignItems='center' spacing={1}>
-                      <Chip variant='soft' color='success' startDecorator={<Toll />}>
+                      <Chip
+                        variant='soft'
+                        color='success'
+                        startDecorator={<Toll />}
+                      >
                         {reward.points} pts
                       </Chip>
                       <IconButton
@@ -350,7 +354,9 @@ const RewardsView = () => {
           {redemptionsLoading ? (
             <Typography>Loading…</Typography>
           ) : redemptions.length === 0 ? (
-            <Typography sx={{ color: 'neutral.500', textAlign: 'center', py: 4 }}>
+            <Typography
+              sx={{ color: 'neutral.500', textAlign: 'center', py: 4 }}
+            >
               No redemptions yet
             </Typography>
           ) : (
@@ -370,7 +376,9 @@ const RewardsView = () => {
                         <Chip
                           size='sm'
                           variant='soft'
-                          color={r.status === 'fulfilled' ? 'success' : 'warning'}
+                          color={
+                            r.status === 'fulfilled' ? 'success' : 'warning'
+                          }
                           startDecorator={
                             r.status === 'fulfilled' ? (
                               <CheckCircleOutline />
@@ -382,9 +390,16 @@ const RewardsView = () => {
                           {r.status}
                         </Chip>
                       </Stack>
-                      <Typography level='body-sm' sx={{ color: 'text.secondary' }}>
+                      <Typography
+                        level='body-sm'
+                        sx={{ color: 'text.secondary' }}
+                      >
                         {r.displayName || r.username} ·{' '}
-                        <Chip size='sm' variant='plain' startDecorator={<Toll />}>
+                        <Chip
+                          size='sm'
+                          variant='plain'
+                          startDecorator={<Toll />}
+                        >
                           {r.points} pts
                         </Chip>{' '}
                         · {new Date(r.redeemedAt).toLocaleDateString()}
@@ -399,7 +414,9 @@ const RewardsView = () => {
                         onClick={() =>
                           fulfillRedemption.mutate(r.id, {
                             onError: err =>
-                              showError(err.message || 'Failed to fulfill redemption'),
+                              showError(
+                                err.message || 'Failed to fulfill redemption',
+                              ),
                           })
                         }
                       >
@@ -416,7 +433,9 @@ const RewardsView = () => {
 
       {/* Modals */}
       {rewardModalConfig && (
-        <RewardModal config={{ ...rewardModalConfig, error: rewardModalError }} />
+        <RewardModal
+          config={{ ...rewardModalConfig, error: rewardModalError }}
+        />
       )}
 
       {deleteConfirmConfig && (

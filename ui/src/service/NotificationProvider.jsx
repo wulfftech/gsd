@@ -1,6 +1,12 @@
 import { CheckCircle, Error, Info, Undo, Warning } from '@mui/icons-material'
 import { Box, Button, Snackbar, Typography } from '@mui/joy'
-import React, { createContext, useContext, useState } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react'
 
 const NotificationContext = createContext()
 
@@ -10,6 +16,40 @@ export const useNotification = () => useContext(NotificationContext)
 export const useError = () => {
   const { showError } = useNotification()
   return { showError }
+}
+
+// Normalize notification input. Pure, so it lives outside the component and
+// never needs memoizing.
+const normalizeNotification = (input, type) => {
+  if (typeof input === 'string') {
+    return {
+      type,
+      message: input,
+    }
+  }
+
+  if (typeof input === 'object' && input !== null) {
+    // If it's already a properly structured notification
+    if (input.title || input.message) {
+      return {
+        type,
+        ...input,
+      }
+    }
+
+    // If it's a simple object with just message content
+    return {
+      type,
+      message: input.message || input.toString(),
+      title: input.title,
+      ...input,
+    }
+  }
+
+  return {
+    type,
+    message: input?.toString() || 'Unknown notification',
+  }
 }
 
 // Notification types configuration with default titles
@@ -61,101 +101,114 @@ const NOTIFICATION_TYPES = {
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([])
 
-  const addNotification = notification => {
-    const id = Date.now() + Math.random()
-    const newNotification = {
-      id,
-      ...notification,
-      timestamp: Date.now(),
-    }
-
-    setNotifications(prev => [...prev, newNotification])
-
-    // Auto-remove notification if it has a duration
-    const config =
-      NOTIFICATION_TYPES[notification.type] || NOTIFICATION_TYPES.info
-    if (config.autoHideDuration) {
-      setTimeout(() => {
-        removeNotification(id)
-      }, config.autoHideDuration)
-    }
-
-    return id
-  }
-
-  const removeNotification = id => {
+  const removeNotification = useCallback(id => {
     setNotifications(prev => prev.filter(n => n.id !== id))
-  }
+  }, [])
 
-  const clearAllNotifications = () => {
+  const addNotification = useCallback(
+    notification => {
+      const id = Date.now() + Math.random()
+      const newNotification = {
+        id,
+        ...notification,
+        timestamp: Date.now(),
+      }
+
+      setNotifications(prev => [...prev, newNotification])
+
+      // Auto-remove notification if it has a duration
+      const config =
+        NOTIFICATION_TYPES[notification.type] || NOTIFICATION_TYPES.info
+      if (config.autoHideDuration) {
+        setTimeout(() => {
+          removeNotification(id)
+        }, config.autoHideDuration)
+      }
+
+      return id
+    },
+    [removeNotification],
+  )
+
+  const clearAllNotifications = useCallback(() => {
     setNotifications([])
-  }
-
-  // Helper function to normalize notification input
-  const normalizeNotification = (input, type) => {
-    if (typeof input === 'string') {
-      return {
-        type,
-        message: input,
-      }
-    }
-
-    if (typeof input === 'object' && input !== null) {
-      // If it's already a properly structured notification
-      if (input.title || input.message) {
-        return {
-          type,
-          ...input,
-        }
-      }
-
-      // If it's a simple object with just message content
-      return {
-        type,
-        message: input.message || input.toString(),
-        title: input.title,
-        ...input,
-      }
-    }
-
-    return {
-      type,
-      message: input?.toString() || 'Unknown notification',
-    }
-  }
+  }, [])
 
   // Unified notification method
-  const showNotification = notification => {
-    // Handle different input formats
-    if (typeof notification === 'string') {
-      return addNotification(normalizeNotification(notification, 'info'))
-    }
+  const showNotification = useCallback(
+    notification => {
+      // Handle different input formats
+      if (typeof notification === 'string') {
+        return addNotification(normalizeNotification(notification, 'info'))
+      }
 
-    return addNotification(
-      normalizeNotification(notification, notification.type || 'info'),
-    )
-  }
+      return addNotification(
+        normalizeNotification(notification, notification.type || 'info'),
+      )
+    },
+    [addNotification],
+  )
 
   // Specific notification methods with enhanced language
-  const showError = error => {
-    return addNotification(normalizeNotification(error, 'error'))
-  }
+  const showError = useCallback(
+    error => {
+      return addNotification(normalizeNotification(error, 'error'))
+    },
+    [addNotification],
+  )
 
-  const showUndo = message => {
-    return addNotification(normalizeNotification(message, 'undo'))
-  }
+  const showUndo = useCallback(
+    message => {
+      return addNotification(normalizeNotification(message, 'undo'))
+    },
+    [addNotification],
+  )
 
-  const showSuccess = message => {
-    return addNotification(normalizeNotification(message, 'success'))
-  }
+  const showSuccess = useCallback(
+    message => {
+      return addNotification(normalizeNotification(message, 'success'))
+    },
+    [addNotification],
+  )
 
-  const showWarning = message => {
-    return addNotification(normalizeNotification(message, 'warning'))
-  }
+  const showWarning = useCallback(
+    message => {
+      return addNotification(normalizeNotification(message, 'warning'))
+    },
+    [addNotification],
+  )
 
-  const showInfo = message => {
-    return addNotification(normalizeNotification(message, 'info'))
-  }
+  const showInfo = useCallback(
+    message => {
+      return addNotification(normalizeNotification(message, 'info'))
+    },
+    [addNotification],
+  )
+
+  const contextValue = useMemo(
+    () => ({
+      showNotification,
+      showError,
+      showSuccess,
+      showUndo,
+      showWarning,
+      showInfo,
+      removeNotification,
+      clearAllNotifications,
+      notifications,
+    }),
+    [
+      showNotification,
+      showError,
+      showSuccess,
+      showUndo,
+      showWarning,
+      showInfo,
+      removeNotification,
+      clearAllNotifications,
+      notifications,
+    ],
+  )
 
   const renderNotification = notification => {
     const config =
@@ -249,19 +302,7 @@ export const NotificationProvider = ({ children }) => {
   }
 
   return (
-    <NotificationContext.Provider
-      value={{
-        showNotification,
-        showError,
-        showSuccess,
-        showUndo,
-        showWarning,
-        showInfo,
-        removeNotification,
-        clearAllNotifications,
-        notifications,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
       {notifications.map(renderNotification)}
     </NotificationContext.Provider>

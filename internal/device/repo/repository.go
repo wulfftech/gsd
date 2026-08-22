@@ -179,4 +179,3 @@ func (r *DeviceRepository) GetActiveDeviceCount(c context.Context, userID int) (
 		Count(&count).Error
 	return count, err
 }
-

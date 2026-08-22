@@ -1,12 +1,12 @@
 import {
-    Alert,
-    Box,
-    Button,
-    FormControl,
-    FormLabel,
-    Switch,
-    Textarea,
-    Typography,
+  Alert,
+  Box,
+  Button,
+  FormControl,
+  FormLabel,
+  Switch,
+  Textarea,
+  Typography,
 } from '@mui/joy'
 import { useCallback, useEffect, useState } from 'react'
 import KeyboardShortcutHint from '../../../components/common/KeyboardShortcutHint'
@@ -118,9 +118,9 @@ function NudgeModal({ config }) {
         <Alert color='warning' sx={{ mb: 2 }}>
           <Typography level='body-sm'>
             <strong>Heads up!</strong>This feature avaiable on Donetick Cloud!
-            Since you're using a self-hosted instance, nudges will requires you
-            to setup Google cloud account and Firebase Cloud Messaging (FCM).
-            and build the Android or the iOS app by yourself.
+            Since you&apos;re using a self-hosted instance, nudges will requires
+            you to setup Google cloud account and Firebase Cloud Messaging
+            (FCM). and build the Android or the iOS app by yourself.
             <br />
             Will update if we come up with a solution to make this easier for to
             configure. for selfhosters

@@ -305,9 +305,7 @@ const ThingsHistory = () => {
                   tickLine='true'
                   axisLine='false'
                 />
-                <Tooltip
-                  labelFormatter={label => fmt.dateTime(label)}
-                />
+                <Tooltip labelFormatter={label => fmt.dateTime(label)} />
 
                 <Line
                   type='monotone'

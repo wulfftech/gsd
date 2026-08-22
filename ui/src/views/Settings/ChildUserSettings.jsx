@@ -78,7 +78,7 @@ const ChildUserSettings = () => {
     }
   }
 
-  const handleDelete = (user) => {
+  const handleDelete = user => {
     showConfirmation(
       `Delete the managed account "${user.displayName || user.username}"? This cannot be undone.`,
       'Delete Managed Account',

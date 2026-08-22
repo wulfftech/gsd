@@ -150,7 +150,9 @@ const ProjectModal = ({ isOpen, onClose, onSave, project }) => {
 
   const handleToggleAssignee = userId => {
     setAssigneeIDs(prev =>
-      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId],
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId],
     )
   }
 
@@ -298,7 +300,9 @@ const ProjectModal = ({ isOpen, onClose, onSave, project }) => {
                 value={dueDate}
                 onChange={e => setDueDate(e.target.value)}
                 disabled={isSubmitting}
-                slotProps={{ input: { min: new Date().toISOString().slice(0, 10) } }}
+                slotProps={{
+                  input: { min: new Date().toISOString().slice(0, 10) },
+                }}
               />
             </FormControl>
 

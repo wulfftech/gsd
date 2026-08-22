@@ -1,6 +1,6 @@
 import { Button, Chip, Menu, MenuItem, Typography } from '@mui/joy'
 import IconButton from '@mui/joy/IconButton'
-import React, { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getTextColorFromBackgroundColor } from '../../utils/Colors.jsx'
 
 const IconButtonWithMenu = ({
@@ -9,7 +9,7 @@ const IconButtonWithMenu = ({
   icon,
   options,
   onItemSelect,
-  selectedItem,
+
   setSelectedItem,
   isActive,
   useChips,
@@ -22,21 +22,25 @@ const IconButtonWithMenu = ({
     setAnchorEl(event.currentTarget)
   }
 
-  const handleMenuClose = () => {
+  const handleMenuClose = useCallback(() => {
     setAnchorEl(null)
-  }
+  }, [])
+
+  const handleMenuOutsideClick = useCallback(
+    event => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        handleMenuClose()
+      }
+    },
+    [handleMenuClose],
+  )
+
   useEffect(() => {
     document.addEventListener('mousedown', handleMenuOutsideClick)
     return () => {
       document.removeEventListener('mousedown', handleMenuOutsideClick)
     }
-  }, [anchorEl])
-
-  const handleMenuOutsideClick = event => {
-    if (menuRef.current && !menuRef.current.contains(event.target)) {
-      handleMenuClose()
-    }
-  }
+  }, [handleMenuOutsideClick])
 
   return (
     <>

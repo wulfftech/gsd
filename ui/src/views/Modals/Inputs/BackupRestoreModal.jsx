@@ -140,7 +140,6 @@ function BackupRestoreModal({ isOpen, onClose, showNotification }) {
           const response = await RestoreBackup(restoreEncryptionKey, backupData)
 
           if (response.ok) {
-            const data = await response.json()
             showNotification({
               type: 'success',
               message: 'Backup restored successfully. Please refresh the page.',
@@ -212,7 +211,7 @@ function BackupRestoreModal({ isOpen, onClose, showNotification }) {
           placeholder='Enter a strong encryption key'
         />
         <Typography level='body-xs' sx={{ mt: 0.5 }}>
-          Keep this key safe - you'll need it to restore your backup
+          Keep this key safe - you&apos;ll need it to restore your backup
         </Typography>
       </FormControl>
 

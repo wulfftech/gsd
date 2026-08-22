@@ -17,9 +17,6 @@ export default function FreeSoloCreateOption({
   }, [options])
 
   const [value, setValue] = React.useState([selected])
-  const [selectOptions, setSelectOptions] = React.useState(
-    selected ? selected : [],
-  )
   return (
     <FormControl id='free-solo-with-text-demo'>
       <Autocomplete

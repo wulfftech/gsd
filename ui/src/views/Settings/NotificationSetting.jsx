@@ -280,7 +280,6 @@ const NotificationSetting = () => {
     }
   }
   return (
-
     <SettingsLayout title='Notification Settings'>
       <div className='grid gap-4 py-4' id='notifications'>
         <Typography level='h3'>Device Notification</Typography>
@@ -701,8 +700,8 @@ const NotificationSetting = () => {
                   }}
                 />
                 <Typography mt={0} level='body-xs'>
-                  If you don't know your Chat ID, start chat with userinfobot
-                  and it will send you your Chat ID.{' '}
+                  If you don&apos;t know your Chat ID, start chat with
+                  userinfobot and it will send you your Chat ID.{' '}
                   <a
                     style={{
                       textDecoration: 'underline',

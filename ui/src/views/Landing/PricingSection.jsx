@@ -1,15 +1,15 @@
 /* eslint-disable react/jsx-key */
 import { CheckRounded } from '@mui/icons-material'
 import { Container, Typography } from '@mui/joy'
-import { useNavigate } from 'react-router-dom'
-
 const PricingSection = () => {
-  const navigate = useNavigate()
   const FEATURES_FREE = [
     ['Create Tasks and Chores', <CheckRounded color='primary' />],
     ['Limited Task History', <CheckRounded color='primary' />],
     ['Circle up to two members', <CheckRounded color='primary' />],
   ]
+  // TODO: dead code -- never rendered.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const FEATURES_PREMIUM = [
     ['All Basic Features', <CheckRounded color='primary' />],
     ['Hosted on DoneTick servers', <CheckRounded color='primary' />],
@@ -33,6 +33,9 @@ const PricingSection = () => {
 
     ['Priority Support', <CheckRounded color='primary' />],
   ]
+  // TODO: dead code -- never rendered.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const PRICEITEMS = [
     {
       title: 'Basic',

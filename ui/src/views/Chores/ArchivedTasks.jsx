@@ -21,10 +21,8 @@ import {
   Typography,
 } from '@mui/joy'
 import Fuse from 'fuse.js'
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
-import { useImpersonateUser } from '../../contexts/ImpersonateUserContext.jsx'
 import { useUnArchiveChore } from '../../queries/ChoreQueries'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { useNotification } from '../../service/NotificationProvider'
@@ -40,13 +38,11 @@ const ArchivedTasks = () => {
   const { data: userProfile, isLoading: isUserProfileLoading } =
     useUserProfile()
   const { showSuccess, showError } = useNotification()
-  const { impersonatedUser } = useImpersonateUser()
   const unArchiveChore = useUnArchiveChore()
   const [archivedChores, setArchivedChores] = useState([])
   const [filteredChores, setFilteredChores] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [performers, setPerformers] = useState([])
-  const navigate = useNavigate()
   const [viewMode, setViewMode] = useState(
     localStorage.getItem('archivedChoreCardViewMode') || 'default',
   )
@@ -87,7 +83,279 @@ const ArchivedTasks = () => {
       }
     }
     loadArchivedChores()
-  }, [membersLoading, userProfile, membersData])
+  }, [membersLoading, userProfile, membersData, showError])
+
+  const toggleViewMode = () => {
+    const modes = ['default', 'compact']
+    const currentIndex = modes.indexOf(viewMode)
+    const nextIndex = (currentIndex + 1) % modes.length
+    const newMode = modes[nextIndex]
+    setViewMode(newMode)
+    localStorage.setItem('archivedChoreCardViewMode', newMode)
+  }
+
+  const searchOptions = {
+    keys: ['name', 'raw_label'],
+    includeScore: true,
+    isCaseSensitive: false,
+    findAllMatches: true,
+  }
+
+  const fuse = new Fuse(
+    archivedChores.map(c => ({
+      ...c,
+      raw_label: c.labelsV2?.map(c => c.name).join(' '),
+    })),
+    searchOptions,
+  )
+
+  const handleSearchChange = e => {
+    const search = e.target.value
+    if (search === '') {
+      setFilteredChores(archivedChores)
+      setSearchTerm('')
+      return
+    }
+
+    const term = search.toLowerCase()
+    setSearchTerm(term)
+    setFilteredChores(fuse.search(term).map(result => result.item))
+  }
+
+  const handleSearchClose = () => {
+    setSearchTerm('')
+    setFilteredChores(archivedChores)
+    searchInputRef.current?.blur()
+  }
+
+  const handleChoreUpdated = (updatedChore, event) => {
+    if (event === 'unarchive') {
+      // Remove from archived list when unarchived
+      const newArchivedChores = archivedChores.filter(
+        chore => chore.id !== updatedChore.id,
+      )
+      const newFilteredChores = filteredChores.filter(
+        chore => chore.id !== updatedChore.id,
+      )
+      setArchivedChores(newArchivedChores)
+      setFilteredChores(newFilteredChores)
+
+      showSuccess({
+        title: 'Task Restored',
+        message: 'The task has been restored and is now active.',
+      })
+    }
+  }
+
+  const handleChoreDeleted = deletedChore => {
+    const newArchivedChores = archivedChores.filter(
+      chore => chore.id !== deletedChore.id,
+    )
+    const newFilteredChores = filteredChores.filter(
+      chore => chore.id !== deletedChore.id,
+    )
+    setArchivedChores(newArchivedChores)
+    setFilteredChores(newFilteredChores)
+
+    showSuccess({
+      title: 'Task Deleted',
+      message: 'The archived task has been permanently deleted.',
+    })
+  }
+
+  // Multi-select helper functions
+  const toggleMultiSelectMode = useCallback(() => {
+    const newMode = !isMultiSelectMode
+    setIsMultiSelectMode(newMode)
+
+    if (!newMode) {
+      setSelectedChores(new Set())
+    }
+  }, [isMultiSelectMode])
+
+  const toggleChoreSelection = choreId => {
+    const newSelection = new Set(selectedChores)
+    if (newSelection.has(choreId)) {
+      newSelection.delete(choreId)
+    } else {
+      newSelection.add(choreId)
+    }
+    setSelectedChores(newSelection)
+  }
+
+  const selectAllVisibleChores = useCallback(() => {
+    const visibleChores =
+      searchTerm?.length > 0 ? filteredChores : archivedChores
+    if (visibleChores.length > 0) {
+      const allIds = new Set(visibleChores.map(chore => chore.id))
+      setSelectedChores(allIds)
+    }
+  }, [archivedChores, filteredChores, searchTerm?.length])
+
+  const clearSelection = useCallback(() => {
+    if (selectedChores.size === 0) {
+      setIsMultiSelectMode(false)
+      return
+    }
+    setSelectedChores(new Set())
+  }, [selectedChores.size])
+
+  const getSelectedChoresData = useCallback(() => {
+    return Array.from(selectedChores)
+      .map(id => archivedChores.find(chore => chore.id === id))
+      .filter(Boolean)
+  }, [selectedChores, archivedChores])
+
+  // Bulk operations
+  const handleBulkRestore = useCallback(async () => {
+    const selectedData = getSelectedChoresData()
+    if (selectedData.length === 0) return
+
+    setConfirmModelConfig({
+      isOpen: true,
+      title: 'Restore Tasks',
+      confirmText: 'Restore',
+      cancelText: 'Cancel',
+      message: `Restore ${selectedData.length} task${selectedData.length > 1 ? 's' : ''} to active list?`,
+      onClose: async isConfirmed => {
+        if (isConfirmed === true) {
+          try {
+            const restoredTasks = []
+            const failedTasks = []
+
+            for (const chore of selectedData) {
+              try {
+                await new Promise((resolve, reject) => {
+                  unArchiveChore.mutate(chore.id, {
+                    onSuccess: data => {
+                      restoredTasks.push(chore)
+                      resolve(data)
+                    },
+                    onError: error => {
+                      failedTasks.push(chore)
+                      reject(error)
+                    },
+                  })
+                })
+              } catch (error) {
+                // Error already handled in onError callback
+              }
+            }
+
+            if (restoredTasks.length > 0) {
+              showSuccess({
+                title: '📤 Tasks Restored',
+                message: `Successfully restored ${restoredTasks.length} task${restoredTasks.length > 1 ? 's' : ''}.`,
+              })
+
+              // Remove restored tasks from archived list
+              const restoredIds = new Set(restoredTasks.map(c => c.id))
+              const newArchivedChores = archivedChores.filter(
+                c => !restoredIds.has(c.id),
+              )
+              const newFilteredChores = filteredChores.filter(
+                c => !restoredIds.has(c.id),
+              )
+              setArchivedChores(newArchivedChores)
+              setFilteredChores(newFilteredChores)
+            }
+
+            if (failedTasks.length > 0) {
+              showError({
+                title: 'Some Tasks Failed',
+                message: `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be restored.`,
+              })
+            }
+
+            clearSelection()
+          } catch (error) {
+            showError({
+              title: 'Bulk Restore Failed',
+              message: 'An unexpected error occurred. Please try again.',
+            })
+          }
+        }
+        setConfirmModelConfig({})
+      },
+    })
+  }, [
+    archivedChores,
+    clearSelection,
+    filteredChores,
+    getSelectedChoresData,
+    showError,
+    showSuccess,
+    unArchiveChore,
+  ])
+
+  const handleBulkDelete = useCallback(async () => {
+    const selectedData = getSelectedChoresData()
+    if (selectedData.length === 0) return
+
+    setConfirmModelConfig({
+      isOpen: true,
+      title: 'Delete Archived Tasks',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      message: `Permanently delete ${selectedData.length} archived task${selectedData.length > 1 ? 's' : ''}?\n\nThis action cannot be undone.`,
+      onClose: async isConfirmed => {
+        if (isConfirmed === true) {
+          try {
+            const deletedTasks = []
+            const failedTasks = []
+
+            for (const chore of selectedData) {
+              try {
+                await DeleteChore(chore.id)
+                deletedTasks.push(chore)
+              } catch (error) {
+                failedTasks.push(chore)
+              }
+            }
+
+            if (deletedTasks.length > 0) {
+              showSuccess({
+                title: '🗑️ Tasks Deleted',
+                message: `Successfully deleted ${deletedTasks.length} task${deletedTasks.length > 1 ? 's' : ''}.`,
+              })
+
+              const deletedIds = new Set(deletedTasks.map(c => c.id))
+              const newArchivedChores = archivedChores.filter(
+                c => !deletedIds.has(c.id),
+              )
+              const newFilteredChores = filteredChores.filter(
+                c => !deletedIds.has(c.id),
+              )
+              setArchivedChores(newArchivedChores)
+              setFilteredChores(newFilteredChores)
+            }
+
+            if (failedTasks.length > 0) {
+              showError({
+                title: 'Some Tasks Failed',
+                message: `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be deleted.`,
+              })
+            }
+
+            clearSelection()
+          } catch (error) {
+            showError({
+              title: 'Bulk Delete Failed',
+              message: 'An unexpected error occurred. Please try again.',
+            })
+          }
+        }
+        setConfirmModelConfig({})
+      },
+    })
+  }, [
+    archivedChores,
+    clearSelection,
+    filteredChores,
+    getSelectedChoresData,
+    showError,
+    showSuccess,
+  ])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -179,266 +447,20 @@ const ArchivedTasks = () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isMultiSelectMode, selectedChores.size])
-
-  const toggleViewMode = () => {
-    const modes = ['default', 'compact']
-    const currentIndex = modes.indexOf(viewMode)
-    const nextIndex = (currentIndex + 1) % modes.length
-    const newMode = modes[nextIndex]
-    setViewMode(newMode)
-    localStorage.setItem('archivedChoreCardViewMode', newMode)
-  }
-
-  const searchOptions = {
-    keys: ['name', 'raw_label'],
-    includeScore: true,
-    isCaseSensitive: false,
-    findAllMatches: true,
-  }
-
-  const fuse = new Fuse(
-    archivedChores.map(c => ({
-      ...c,
-      raw_label: c.labelsV2?.map(c => c.name).join(' '),
-    })),
-    searchOptions,
-  )
-
-  const handleSearchChange = e => {
-    const search = e.target.value
-    if (search === '') {
-      setFilteredChores(archivedChores)
-      setSearchTerm('')
-      return
-    }
-
-    const term = search.toLowerCase()
-    setSearchTerm(term)
-    setFilteredChores(fuse.search(term).map(result => result.item))
-  }
-
-  const handleSearchClose = () => {
-    setSearchTerm('')
-    setFilteredChores(archivedChores)
-    searchInputRef.current?.blur()
-  }
-
-  const handleChoreUpdated = (updatedChore, event) => {
-    if (event === 'unarchive') {
-      // Remove from archived list when unarchived
-      const newArchivedChores = archivedChores.filter(
-        chore => chore.id !== updatedChore.id,
-      )
-      const newFilteredChores = filteredChores.filter(
-        chore => chore.id !== updatedChore.id,
-      )
-      setArchivedChores(newArchivedChores)
-      setFilteredChores(newFilteredChores)
-
-      showSuccess({
-        title: 'Task Restored',
-        message: 'The task has been restored and is now active.',
-      })
-    }
-  }
-
-  const handleChoreDeleted = deletedChore => {
-    const newArchivedChores = archivedChores.filter(
-      chore => chore.id !== deletedChore.id,
-    )
-    const newFilteredChores = filteredChores.filter(
-      chore => chore.id !== deletedChore.id,
-    )
-    setArchivedChores(newArchivedChores)
-    setFilteredChores(newFilteredChores)
-
-    showSuccess({
-      title: 'Task Deleted',
-      message: 'The archived task has been permanently deleted.',
-    })
-  }
-
-  // Multi-select helper functions
-  const toggleMultiSelectMode = () => {
-    const newMode = !isMultiSelectMode
-    setIsMultiSelectMode(newMode)
-
-    if (!newMode) {
-      setSelectedChores(new Set())
-    }
-  }
-
-  const toggleChoreSelection = choreId => {
-    const newSelection = new Set(selectedChores)
-    if (newSelection.has(choreId)) {
-      newSelection.delete(choreId)
-    } else {
-      newSelection.add(choreId)
-    }
-    setSelectedChores(newSelection)
-  }
-
-  const selectAllVisibleChores = () => {
-    const visibleChores =
-      searchTerm?.length > 0 ? filteredChores : archivedChores
-    if (visibleChores.length > 0) {
-      const allIds = new Set(visibleChores.map(chore => chore.id))
-      setSelectedChores(allIds)
-    }
-  }
-
-  const clearSelection = () => {
-    if (selectedChores.size === 0) {
-      setIsMultiSelectMode(false)
-      return
-    }
-    setSelectedChores(new Set())
-  }
-
-  const getSelectedChoresData = () => {
-    return Array.from(selectedChores)
-      .map(id => archivedChores.find(chore => chore.id === id))
-      .filter(Boolean)
-  }
-
-  // Bulk operations
-  const handleBulkRestore = async () => {
-    const selectedData = getSelectedChoresData()
-    if (selectedData.length === 0) return
-
-    setConfirmModelConfig({
-      isOpen: true,
-      title: 'Restore Tasks',
-      confirmText: 'Restore',
-      cancelText: 'Cancel',
-      message: `Restore ${selectedData.length} task${selectedData.length > 1 ? 's' : ''} to active list?`,
-      onClose: async isConfirmed => {
-        if (isConfirmed === true) {
-          try {
-            const restoredTasks = []
-            const failedTasks = []
-
-            for (const chore of selectedData) {
-              try {
-                await new Promise((resolve, reject) => {
-                  unArchiveChore.mutate(chore.id, {
-                    onSuccess: data => {
-                      restoredTasks.push(chore)
-                      resolve(data)
-                    },
-                    onError: error => {
-                      failedTasks.push(chore)
-                      reject(error)
-                    },
-                  })
-                })
-              } catch (error) {
-                // Error already handled in onError callback
-              }
-            }
-
-            if (restoredTasks.length > 0) {
-              showSuccess({
-                title: '📤 Tasks Restored',
-                message: `Successfully restored ${restoredTasks.length} task${restoredTasks.length > 1 ? 's' : ''}.`,
-              })
-
-              // Remove restored tasks from archived list
-              const restoredIds = new Set(restoredTasks.map(c => c.id))
-              const newArchivedChores = archivedChores.filter(
-                c => !restoredIds.has(c.id),
-              )
-              const newFilteredChores = filteredChores.filter(
-                c => !restoredIds.has(c.id),
-              )
-              setArchivedChores(newArchivedChores)
-              setFilteredChores(newFilteredChores)
-            }
-
-            if (failedTasks.length > 0) {
-              showError({
-                title: 'Some Tasks Failed',
-                message: `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be restored.`,
-              })
-            }
-
-            clearSelection()
-          } catch (error) {
-            showError({
-              title: 'Bulk Restore Failed',
-              message: 'An unexpected error occurred. Please try again.',
-            })
-          }
-        }
-        setConfirmModelConfig({})
-      },
-    })
-  }
-
-  const handleBulkDelete = async () => {
-    const selectedData = getSelectedChoresData()
-    if (selectedData.length === 0) return
-
-    setConfirmModelConfig({
-      isOpen: true,
-      title: 'Delete Archived Tasks',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
-      message: `Permanently delete ${selectedData.length} archived task${selectedData.length > 1 ? 's' : ''}?\n\nThis action cannot be undone.`,
-      onClose: async isConfirmed => {
-        if (isConfirmed === true) {
-          try {
-            const deletedTasks = []
-            const failedTasks = []
-
-            for (const chore of selectedData) {
-              try {
-                await DeleteChore(chore.id)
-                deletedTasks.push(chore)
-              } catch (error) {
-                failedTasks.push(chore)
-              }
-            }
-
-            if (deletedTasks.length > 0) {
-              showSuccess({
-                title: '🗑️ Tasks Deleted',
-                message: `Successfully deleted ${deletedTasks.length} task${deletedTasks.length > 1 ? 's' : ''}.`,
-              })
-
-              const deletedIds = new Set(deletedTasks.map(c => c.id))
-              const newArchivedChores = archivedChores.filter(
-                c => !deletedIds.has(c.id),
-              )
-              const newFilteredChores = filteredChores.filter(
-                c => !deletedIds.has(c.id),
-              )
-              setArchivedChores(newArchivedChores)
-              setFilteredChores(newFilteredChores)
-            }
-
-            if (failedTasks.length > 0) {
-              showError({
-                title: 'Some Tasks Failed',
-                message: `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be deleted.`,
-              })
-            }
-
-            clearSelection()
-          } catch (error) {
-            showError({
-              title: 'Bulk Delete Failed',
-              message: 'An unexpected error occurred. Please try again.',
-            })
-          }
-        }
-        setConfirmModelConfig({})
-      },
-    })
-  }
+  }, [
+    isMultiSelectMode,
+    selectedChores.size,
+    clearSelection,
+    handleBulkDelete,
+    handleBulkRestore,
+    selectAllVisibleChores,
+    toggleMultiSelectMode,
+  ])
 
   // Helper function to render the appropriate card component
+  // TODO: dead code -- never called; the list renders inline instead.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const renderChoreCard = (chore, key) => {
     const CardComponent = viewMode === 'compact' ? CompactChoreCard : ChoreCard
     return (

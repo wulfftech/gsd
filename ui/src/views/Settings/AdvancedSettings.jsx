@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Card,
   Checkbox,
   Chip,
   FormControl,
@@ -23,7 +22,7 @@ const AdvancedSettings = () => {
 
   const [userCircles, setUserCircles] = useState([])
   const [webhookURL, setWebhookURL] = useState(null)
-  const [webhookError, setWebhookError] = useState(null)
+  const [webhookError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
@@ -44,17 +43,18 @@ const AdvancedSettings = () => {
 
   if (!userProfile) {
     return (
-      <SettingsLayout title="Advanced Settings">
+      <SettingsLayout title='Advanced Settings'>
         <div>Loading...</div>
       </SettingsLayout>
     )
   }
 
   return (
-    <SettingsLayout title="Advanced Settings">
+    <SettingsLayout title='Advanced Settings'>
       <div className='grid gap-4'>
         <Typography level='body-md'>
-          Configure advanced features like webhooks and real-time updates for enhanced productivity.
+          Configure advanced features like webhooks and real-time updates for
+          enhanced productivity.
         </Typography>
 
         {/* Webhook Settings - Only show for admins */}
@@ -152,7 +152,8 @@ const AdvancedSettings = () => {
           Real-time Updates
         </Typography>
         <Typography level='body-md' mt={-1}>
-          Configure how you receive live updates when tasks and activities change in your circle.
+          Configure how you receive live updates when tasks and activities
+          change in your circle.
         </Typography>
         <RealTimeSettings />
       </div>

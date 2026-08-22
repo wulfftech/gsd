@@ -1,4 +1,3 @@
-/* eslint-disable tailwindcss/no-custom-classname */
 // import { StyledButton } from '@/components/styled-button'
 import { Button, IconButton, useColorScheme } from '@mui/joy'
 import Typography from '@mui/joy/Typography'
@@ -23,7 +22,7 @@ const HomeHero = () => {
     'The smart task manager that keeps individuals and families organized with intelligent scheduling and fair task distribution.',
   ]
 
-  const [heroTextIndex, setHeroTextIndex] = React.useState(0)
+  const [heroTextIndex] = React.useState(0)
 
   useEffect(() => {
     // const intervalId = setInterval(

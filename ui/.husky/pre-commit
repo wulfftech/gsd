@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Hooks live in ui/.husky because ui/ is the only npm project, but git runs
+# this from the repo root. lint-staged needs to run inside ui/ so it picks up
+# the lint-staged config, eslint config and prettier config that live there.
+cd ui && npx lint-staged

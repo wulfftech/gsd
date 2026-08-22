@@ -243,7 +243,7 @@ const TasksByAssigneeCard = ({ chores = [] }) => {
             pt: 2,
           }}
         >
-          {assigneeData.slice(0, 6).map((assignee, index) => {
+          {assigneeData.slice(0, 6).map(assignee => {
             const barHeight = Math.max((assignee.total / maxTasks) * 140, 8)
 
             return (
@@ -369,7 +369,7 @@ const TasksByAssigneeCard = ({ chores = [] }) => {
             pr: 0.5,
           }}
         >
-          {[0, 20, 40, 60, 80, 100].map((value, index) => {
+          {[0, 20, 40, 60, 80, 100].map(value => {
             const yPosition = (value / 100) * 140
             return (
               <Typography

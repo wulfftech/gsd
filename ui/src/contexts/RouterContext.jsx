@@ -270,7 +270,7 @@ const Router = createBrowserRouter([
   },
 ])
 
-const RouterContext = ({ children }) => {
+const RouterContext = () => {
   return <RouterProvider router={Router} />
 }
 

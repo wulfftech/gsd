@@ -25,7 +25,7 @@ const AuthCard = styled(Paper)(({ theme }) => ({
   },
 }))
 
-export default function AuthCardContainer({ children, ...props }) {
+export default function AuthCardContainer({ children }) {
   return (
     <Container>
       <AuthCard elevation={0}>

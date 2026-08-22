@@ -559,16 +559,16 @@ const UserPoints = () => {
                         {tabValue === 'now'
                           ? user.availablePoints
                           : leaderboardMode === 'points'
-                          ? user.periodPoints
-                          : user.periodTasks}
+                            ? user.periodPoints
+                            : user.periodTasks}
                       </Typography>
                     </Box>
                     <Typography level='body-xs' sx={{ color: 'text.tertiary' }}>
                       {tabValue === 'now'
                         ? 'balance'
                         : leaderboardMode === 'points'
-                        ? `${user.availablePoints} available`
-                        : `${user.periodPoints} points`}
+                          ? `${user.availablePoints} available`
+                          : `${user.periodPoints} points`}
                     </Typography>
                   </Stack>
 
@@ -804,9 +804,6 @@ const UserPoints = () => {
           const redeemedPoints = selectedUserData?.pointsRedeemed || 0
           const availablePoints = totalPoints
 
-          const periodStats = leaderboardData.find(
-            user => user.userId === selectedUser,
-          )
           const periodPoints = selectedHistory.reduce(
             (sum, item) => sum + (item.points || 0),
             0,

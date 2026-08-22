@@ -52,7 +52,15 @@ const PROJECT_ACTIVE = 0
 const PROJECT_COMPLETED = 1
 
 // ── Task row ──────────────────────────────────────────────────────────────────
-const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members, highlighted }) => {
+const TaskRow = ({
+  task,
+  isAdmin,
+  isAssignee,
+  projectId,
+  projectStatus,
+  members,
+  highlighted,
+}) => {
   const markDone = useMarkTaskDone()
   const approveTask = useApproveTask()
   const rejectTask = useRejectTask()
@@ -67,13 +75,16 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members,
     task.status === TASK_PENDING_APPROVAL &&
     isAdmin
 
-  const claimedBy = task.status === TASK_PENDING_APPROVAL && task.completedBy
-    ? (members.find(m => m.userId === task.completedBy)?.displayName || `User ${task.completedBy}`)
-    : null
+  const claimedBy =
+    task.status === TASK_PENDING_APPROVAL && task.completedBy
+      ? members.find(m => m.userId === task.completedBy)?.displayName ||
+        `User ${task.completedBy}`
+      : null
 
-  const completedBy = task.status === TASK_COMPLETED && task.completedBy
-    ? (members.find(m => m.userId === task.completedBy)?.displayName || null)
-    : null
+  const completedBy =
+    task.status === TASK_COMPLETED && task.completedBy
+      ? members.find(m => m.userId === task.completedBy)?.displayName || null
+      : null
 
   const statusIcon = () => {
     if (task.status === TASK_COMPLETED)
@@ -96,9 +107,14 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members,
         py: 1,
         borderBottom: '1px solid',
         borderColor: 'divider',
-        bgcolor: task.status === TASK_PENDING_APPROVAL ? 'warning.softBg' : 'transparent',
+        bgcolor:
+          task.status === TASK_PENDING_APPROVAL
+            ? 'warning.softBg'
+            : 'transparent',
         opacity: task.status === TASK_COMPLETED ? 0.65 : 1,
-        outline: highlighted ? '2px solid var(--joy-palette-primary-400)' : 'none',
+        outline: highlighted
+          ? '2px solid var(--joy-palette-primary-400)'
+          : 'none',
         outlineOffset: '-2px',
       }}
     >
@@ -116,7 +132,11 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members,
           {task.name}
         </Typography>
         {claimedBy && (
-          <Typography level='body-xs' color='warning' sx={{ fontStyle: 'italic' }}>
+          <Typography
+            level='body-xs'
+            color='warning'
+            sx={{ fontStyle: 'italic' }}
+          >
             Claimed by {claimedBy} · awaiting approval
           </Typography>
         )}
@@ -174,10 +194,20 @@ const TaskRow = ({ task, isAdmin, isAssignee, projectId, projectStatus, members,
 }
 
 // ── Project card ──────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, members, forceExpand, highlightTaskId }) => {
+const ProjectCard = ({
+  project,
+  isAdmin,
+  currentUserId,
+  onEdit,
+  onDelete,
+  members,
+  forceExpand,
+  highlightTaskId,
+}) => {
   // Active projects with tasks start expanded; completed projects start collapsed
   const [expanded, setExpanded] = useState(
-    forceExpand || (project.status === PROJECT_ACTIVE && (project.tasks || []).length > 0),
+    forceExpand ||
+      (project.status === PROJECT_ACTIVE && (project.tasks || []).length > 0),
   )
   const reopenProject = useReopenProject()
 
@@ -275,14 +305,26 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
           </Box>
 
           {/* Meta row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
             <Typography level='body-xs' color='neutral'>
               {completedCount}/{tasks.length} tasks
             </Typography>
 
             {dueDateStr && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                <CalendarToday sx={{ fontSize: 11, color: isOverdue ? 'danger.500' : 'neutral.500' }} />
+                <CalendarToday
+                  sx={{
+                    fontSize: 11,
+                    color: isOverdue ? 'danger.500' : 'neutral.500',
+                  }}
+                />
                 <Typography
                   level='body-xs'
                   color={isOverdue ? 'danger' : 'neutral'}
@@ -314,7 +356,14 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
         </Box>
 
         {/* Right actions */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            flexShrink: 0,
+          }}
+        >
           {isAdmin && !isCompleted && (
             <>
               <IconButton
@@ -384,7 +433,14 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
 
           {/* Tasks */}
           {tasks.length === 0 ? (
-            <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Box
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
               <Typography level='body-sm' color='neutral'>
                 No tasks yet
               </Typography>
@@ -399,7 +455,10 @@ const ProjectCard = ({ project, isAdmin, currentUserId, onEdit, onDelete, member
                 projectId={project.id}
                 projectStatus={project.status}
                 members={members}
-                highlighted={highlightTaskId != null && String(task.id) === String(highlightTaskId)}
+                highlighted={
+                  highlightTaskId != null &&
+                  String(task.id) === String(highlightTaskId)
+                }
               />
             ))
           )}
@@ -477,7 +536,12 @@ const ProjectView = () => {
 
   if (isLoading) {
     return (
-      <Box display='flex' justifyContent='center' alignItems='center' height='60vh'>
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        height='60vh'
+      >
         <CircularProgress />
       </Box>
     )
@@ -486,7 +550,9 @@ const ProjectView = () => {
   if (isError) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography color='danger'>Failed to load projects. Please try again.</Typography>
+        <Typography color='danger'>
+          Failed to load projects. Please try again.
+        </Typography>
       </Box>
     )
   }
@@ -536,7 +602,9 @@ const ProjectView = () => {
           onEdit={handleEdit}
           onDelete={handleDelete}
           forceExpand={String(project.id) === String(targetProjectId)}
-          highlightTaskId={String(project.id) === String(targetProjectId) ? targetTaskId : null}
+          highlightTaskId={
+            String(project.id) === String(targetProjectId) ? targetTaskId : null
+          }
         />
       ))}
 
@@ -560,7 +628,11 @@ const ProjectView = () => {
               onEdit={handleEdit}
               onDelete={handleDelete}
               forceExpand={String(project.id) === String(targetProjectId)}
-              highlightTaskId={String(project.id) === String(targetProjectId) ? targetTaskId : null}
+              highlightTaskId={
+                String(project.id) === String(targetProjectId)
+                  ? targetTaskId
+                  : null
+              }
             />
           ))}
         </>

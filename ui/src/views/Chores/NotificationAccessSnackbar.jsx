@@ -69,7 +69,7 @@ const NotificationAccessSnackbar = () => {
               } catch (error) {
                 console.error('Error setting up notifications:', error)
               }
-              
+
               await Preferences.set({
                 key: 'notificationPreferences',
                 value: JSON.stringify(notificationPreferences),

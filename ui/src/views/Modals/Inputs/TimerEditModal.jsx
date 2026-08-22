@@ -59,7 +59,6 @@ const TimerEditModal = ({ isOpen, onClose, choreId, onTimerUpdate }) => {
     }
   }, [isOpen, timerData])
 
-
   const formatTime = seconds => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
@@ -154,7 +153,6 @@ const TimerEditModal = ({ isOpen, onClose, choreId, onTimerUpdate }) => {
 
   const cancelEditingSession = sessionId => {
     setEditingSessions(prev => {
-      // eslint-disable-next-line no-unused-vars
       const { [sessionId]: removed, ...rest } = prev
       return rest
     })

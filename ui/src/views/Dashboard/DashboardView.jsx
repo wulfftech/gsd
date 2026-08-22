@@ -14,7 +14,7 @@ import {
 } from '@mui/joy'
 import { useNavigate } from 'react-router-dom'
 import { useChores, useChoresHistory } from '../../queries/ChoreQueries'
-import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
+import { useCircleMembers } from '../../queries/UserQueries'
 import { resolvePhotoURL } from '../../utils/Helpers'
 import { useProjects } from '../Projects/ProjectQueries'
 
@@ -62,15 +62,21 @@ const ChoreRow = ({ chore, members, navigate }) => {
         borderColor: overdue ? 'danger.300' : 'divider',
         bgcolor: overdue ? 'danger.softBg' : 'background.surface',
         borderLeft: '3px solid',
-        borderLeftColor: overdue ? 'var(--joy-palette-danger-400)' : 'var(--joy-palette-primary-400)',
+        borderLeftColor: overdue
+          ? 'var(--joy-palette-danger-400)'
+          : 'var(--joy-palette-primary-400)',
         cursor: 'pointer',
         '&:hover': { filter: 'brightness(0.97)' },
       }}
     >
       {overdue ? (
-        <WarningAmberIcon sx={{ fontSize: 15, color: 'danger.500', flexShrink: 0 }} />
+        <WarningAmberIcon
+          sx={{ fontSize: 15, color: 'danger.500', flexShrink: 0 }}
+        />
       ) : (
-        <AccessTimeIcon sx={{ fontSize: 15, color: 'primary.400', flexShrink: 0 }} />
+        <AccessTimeIcon
+          sx={{ fontSize: 15, color: 'primary.400', flexShrink: 0 }}
+        />
       )}
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -102,7 +108,13 @@ const ChoreRow = ({ chore, members, navigate }) => {
             e.stopPropagation()
             navigate(`/points?userId=${assignee.userId}`)
           }}
-          sx={{ width: 22, height: 22, fontSize: 10, flexShrink: 0, cursor: 'pointer' }}
+          sx={{
+            width: 22,
+            height: 22,
+            fontSize: 10,
+            flexShrink: 0,
+            cursor: 'pointer',
+          }}
         >
           {assignee.displayName?.charAt(0)}
         </Avatar>
@@ -117,7 +129,9 @@ const ProjectTaskRow = ({ task, navigate }) => {
 
   return (
     <Box
-      onClick={() => navigate(`/projects?projectId=${task.project.id}&taskId=${task.id}`)}
+      onClick={() =>
+        navigate(`/projects?projectId=${task.project.id}&taskId=${task.id}`)
+      }
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -134,7 +148,9 @@ const ProjectTaskRow = ({ task, navigate }) => {
         '&:hover': { filter: 'brightness(0.97)' },
       }}
     >
-      <FolderOpenIcon sx={{ fontSize: 15, color: projectColor, flexShrink: 0 }} />
+      <FolderOpenIcon
+        sx={{ fontSize: 15, color: projectColor, flexShrink: 0 }}
+      />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography
@@ -161,7 +177,14 @@ const ProjectTaskRow = ({ task, navigate }) => {
 }
 
 // ── User card (right panel) ───────────────────────────────────────────────────
-const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, points, navigate }) => {
+const UserCard = ({
+  member,
+  assignedChores,
+  projectTaskCount,
+  completedToday,
+  points,
+  navigate,
+}) => {
   // Show up to 3 task names, then "+N more"
   const MAX_SHOWN = 3
   const shown = assignedChores.slice(0, MAX_SHOWN)
@@ -263,7 +286,11 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
               </Typography>
             ))}
             {overflow > 0 && (
-              <Typography level='body-xs' color='neutral' sx={{ fontSize: 10, fontStyle: 'italic' }}>
+              <Typography
+                level='body-xs'
+                color='neutral'
+                sx={{ fontSize: 10, fontStyle: 'italic' }}
+              >
                 +{overflow} more
               </Typography>
             )}
@@ -272,9 +299,14 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
                 level='body-xs'
                 color='warning'
                 onClick={() => navigate('/projects')}
-                sx={{ fontSize: 10, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                sx={{
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  '&:hover': { textDecoration: 'underline' },
+                }}
               >
-                {projectTaskCount} project {projectTaskCount === 1 ? 'task' : 'tasks'}
+                {projectTaskCount} project{' '}
+                {projectTaskCount === 1 ? 'task' : 'tasks'}
               </Typography>
             )}
           </>
@@ -296,27 +328,54 @@ const UserCard = ({ member, assignedChores, projectTaskCount, completedToday, po
       >
         <Box
           onClick={() => navigate(`/points?userId=${member.userId}`)}
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            cursor: 'pointer',
+            '&:hover': { textDecoration: 'underline' },
+          }}
         >
           <EmojiEventsIcon sx={{ fontSize: 13, color: 'warning.500' }} />
-          <Typography level='body-xs' sx={{ fontSize: 11, color: 'warning.600', fontWeight: 600 }}>
+          <Typography
+            level='body-xs'
+            sx={{ fontSize: 11, color: 'warning.600', fontWeight: 600 }}
+          >
             {points}
           </Typography>
-          <Typography level='body-xs' sx={{ fontSize: 10, color: 'text.tertiary' }}>pts</Typography>
+          <Typography
+            level='body-xs'
+            sx={{ fontSize: 10, color: 'text.tertiary' }}
+          >
+            pts
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <CheckCircleIcon sx={{ fontSize: 13, color: 'success.500' }} />
-          <Typography level='body-xs' sx={{ fontSize: 11, color: 'success.600', fontWeight: 600 }}>
+          <Typography
+            level='body-xs'
+            sx={{ fontSize: 11, color: 'success.600', fontWeight: 600 }}
+          >
             {completedToday}
           </Typography>
-          <Typography level='body-xs' sx={{ fontSize: 10, color: 'text.tertiary' }}>today</Typography>
+          <Typography
+            level='body-xs'
+            sx={{ fontSize: 10, color: 'text.tertiary' }}
+          >
+            today
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <TaskAltIcon sx={{ fontSize: 13, color: 'neutral.500' }} />
           <Typography level='body-xs' sx={{ fontSize: 11, fontWeight: 600 }}>
             {assignedChores.length + projectTaskCount}
           </Typography>
-          <Typography level='body-xs' sx={{ fontSize: 10, color: 'text.tertiary' }}>tasks</Typography>
+          <Typography
+            level='body-xs'
+            sx={{ fontSize: 10, color: 'text.tertiary' }}
+          >
+            tasks
+          </Typography>
         </Box>
       </Box>
     </Sheet>
@@ -343,12 +402,9 @@ const DashboardView = () => {
   const { data: choresData, isLoading: choresLoading } = useChores(false)
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: circleMembersData } = useCircleMembers()
-  const { data: userProfile } = useUserProfile()
   const { data: historyRaw } = useChoresHistory(100, false)
   // Normalise: useChoresHistory may return an array or {res:[]} depending on cache state
-  const history = Array.isArray(historyRaw)
-    ? historyRaw
-    : historyRaw?.res || []
+  const history = Array.isArray(historyRaw) ? historyRaw : historyRaw?.res || []
 
   const chores = choresData?.res || []
   const members = circleMembersData?.res || []
@@ -381,7 +437,7 @@ const DashboardView = () => {
   // ── Right panel data ─────────────────────────────────────────────────────
   // Completed chores today, keyed by userId
   const completedTodayByUser = {}
-  ;history.forEach(h => {
+  history.forEach(h => {
     const performedAt = h.performedAt || h.completedAt || h.updatedAt
     if (!performedAt) return
     if (new Date(performedAt) < todayStart) return
@@ -403,7 +459,8 @@ const DashboardView = () => {
   const projectTaskCountByUser = {}
   pendingProjectTasks.forEach(t => {
     ;(t.project.assignees || []).forEach(a => {
-      projectTaskCountByUser[a.userId] = (projectTaskCountByUser[a.userId] || 0) + 1
+      projectTaskCountByUser[a.userId] =
+        (projectTaskCountByUser[a.userId] || 0) + 1
     })
   })
 
@@ -413,7 +470,12 @@ const DashboardView = () => {
 
   if (isLoading) {
     return (
-      <Box display='flex' justifyContent='center' alignItems='center' height='60vh'>
+      <Box
+        display='flex'
+        justifyContent='center'
+        alignItems='center'
+        height='60vh'
+      >
         <CircularProgress />
       </Box>
     )
@@ -455,7 +517,12 @@ const DashboardView = () => {
           ) : (
             <>
               {dueSoonChores.map(c => (
-                <ChoreRow key={`c-${c.id}`} chore={c} members={members} navigate={navigate} />
+                <ChoreRow
+                  key={`c-${c.id}`}
+                  chore={c}
+                  members={members}
+                  navigate={navigate}
+                />
               ))}
 
               {pendingProjectTasks.length > 0 && (
@@ -476,7 +543,11 @@ const DashboardView = () => {
                     </Typography>
                   )}
                   {pendingProjectTasks.map(t => (
-                    <ProjectTaskRow key={`pt-${t.id}`} task={t} navigate={navigate} />
+                    <ProjectTaskRow
+                      key={`pt-${t.id}`}
+                      task={t}
+                      navigate={navigate}
+                    />
                   ))}
                 </>
               )}

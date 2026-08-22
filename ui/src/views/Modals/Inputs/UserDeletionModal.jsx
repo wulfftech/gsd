@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import { useResponsiveModal } from '../../../hooks/useResponsiveModal'
 import { CheckUserDeletion, DeleteUser } from '../../../utils/Fetcher'
 
-function UserDeletionModal({ isOpen, onClose, userProfile }) {
+function UserDeletionModal({ isOpen, onClose }) {
   const { ResponsiveModal } = useResponsiveModal()
   const Navigate = useNavigate()
   const [step, setStep] = useState(1) // 1: Warning, 2: Transfer, 3: Confirm
@@ -296,7 +296,7 @@ function UserDeletionModal({ isOpen, onClose, userProfile }) {
       </FormControl>
 
       <FormControl sx={{ mb: 3 }}>
-        <FormLabel>Type "DELETE" to confirm</FormLabel>
+        <FormLabel>Type &quot;DELETE&quot; to confirm</FormLabel>
         <Input
           value={confirmation}
           onChange={e => setConfirmation(e.target.value)}

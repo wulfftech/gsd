@@ -84,7 +84,9 @@ function RewardsPickerModal({ config }) {
           </Box>
         ) : rewards.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <CardGiftcard sx={{ fontSize: '3rem', color: 'neutral.300', mb: 1 }} />
+            <CardGiftcard
+              sx={{ fontSize: '3rem', color: 'neutral.300', mb: 1 }}
+            />
             <Typography level='body-md' sx={{ color: 'neutral.500' }}>
               No rewards available yet
             </Typography>
@@ -106,11 +108,7 @@ function RewardsPickerModal({ config }) {
                     '&:hover': canAfford ? { boxShadow: 'sm' } : undefined,
                   }}
                 >
-                  <Stack
-                    direction='row'
-                    alignItems='center'
-                    spacing={2}
-                  >
+                  <Stack direction='row' alignItems='center' spacing={2}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography level='title-sm' sx={{ fontWeight: 600 }}>
                         {reward.name}
@@ -129,7 +127,12 @@ function RewardsPickerModal({ config }) {
                         </Typography>
                       )}
                     </Box>
-                    <Stack direction='row' alignItems='center' spacing={1} sx={{ flexShrink: 0 }}>
+                    <Stack
+                      direction='row'
+                      alignItems='center'
+                      spacing={1}
+                      sx={{ flexShrink: 0 }}
+                    >
                       <Chip
                         size='sm'
                         variant='soft'

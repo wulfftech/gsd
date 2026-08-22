@@ -25,7 +25,7 @@ export const useUpdate = () => {
               t.id === task.id ? updatedTask : t,
             )
             await localStore.saveToCache('offlineTasks', updatedOfflineTasks)
-            return new Promise((resolve, reject) => {
+            return new Promise(resolve => {
               resolve(updatedTask)
             })
           }
@@ -40,7 +40,7 @@ export const useUpdate = () => {
           ...offlineTasks,
           updatedChoreWithNewId,
         ])
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
           // Resolve with the updated task
           resolve(updatedChoreWithNewId)
         })
@@ -58,11 +58,11 @@ export const useUpdate = () => {
         return updatedChoreRes?.res || updatedChoreRes
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Invalidate the chores query to refresh the data
       queryClient.invalidateQueries(['chores'])
     },
-    onMutate: async updatedChore => {
+    onMutate: async () => {
       if (!networkManager.isOnline) {
         // Handle offline case here if needed
         return
@@ -72,8 +72,6 @@ export const useUpdate = () => {
 }
 
 export const useCompleteSubTask = () => {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: async (subTaskId, choreId, completedAt) => {
       if (!networkManager.isOnline) {
@@ -89,6 +87,6 @@ export const useCompleteSubTask = () => {
       }
       return result.res
     },
-    onSuccess: (data, variables) => {},
+    onSuccess: () => {},
   })
 }

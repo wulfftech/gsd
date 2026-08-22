@@ -132,7 +132,6 @@ func (r *LabelRepository) isLabelsOwner(ctx context.Context, userID int, labelID
 	return count == 1
 }
 
-
 func (r *LabelRepository) UpdateLabel(ctx context.Context, userID int, label *lModel.Label) error {
 
 	if err := r.db.WithContext(ctx).Model(&lModel.Label{}).Where("id = ? and created_by = ?", label.ID, userID).Updates(label).Error; err != nil {

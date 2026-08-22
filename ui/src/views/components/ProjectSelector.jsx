@@ -10,7 +10,7 @@ import {
   MenuItem,
   Typography,
 } from '@mui/joy'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
 import LABEL_COLORS, {
@@ -25,7 +25,7 @@ const ProjectSelector = ({
   onProjectSelect,
   showKeyboardShortcuts = false,
 }) => {
-  const { data: projects = [], isLoading } = useProjects()
+  const { data: projects = [] } = useProjects()
   const navigate = useNavigate()
 
   const [anchorEl, setAnchorEl] = useState(null)
@@ -62,28 +62,31 @@ const ProjectSelector = ({
     setIsKeyboardNavigating(false)
   }
 
-  const handleMenuClose = () => {
+  const handleMenuClose = useCallback(() => {
     setAnchorEl(null)
-  }
+  }, [])
 
-  const handleProjectSelect = project => {
-    onProjectSelect?.(project)
-    handleMenuClose()
-  }
+  const handleProjectSelect = useCallback(
+    project => {
+      onProjectSelect?.(project)
+      handleMenuClose()
+    },
+    [onProjectSelect, handleMenuClose],
+  )
 
-  const handleAddProjectClick = () => {
+  const handleAddProjectClick = useCallback(() => {
     setIsProjectModalOpen(true)
     handleMenuClose()
-  }
+  }, [handleMenuClose])
 
   const handleProjectModalSave = project => {
     handleProjectSelect(project)
   }
 
-  const handleManageProjects = () => {
+  const handleManageProjects = useCallback(() => {
     navigate('/projects')
     handleMenuClose()
-  }
+  }, [navigate, handleMenuClose])
 
   useEffect(() => {
     const handleMenuOutsideClick = event => {
@@ -96,7 +99,7 @@ const ProjectSelector = ({
     return () => {
       document.removeEventListener('mousedown', handleMenuOutsideClick)
     }
-  }, [])
+  }, [handleMenuClose])
 
   // Keyboard shortcut handler
   useEffect(() => {
@@ -162,7 +165,16 @@ const ProjectSelector = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [anchorEl, selectedIndex, defaultProjects, isKeyboardNavigating])
+  }, [
+    anchorEl,
+    selectedIndex,
+    defaultProjects,
+    isKeyboardNavigating,
+    handleProjectSelect,
+    handleAddProjectClick,
+    handleManageProjects,
+    handleMenuClose,
+  ])
 
   // Reset selected index when menu opens
   useEffect(() => {
@@ -368,7 +380,9 @@ const ProjectSelector = ({
               backgroundColor:
                 effectiveSelectedProject === project.name
                   ? 'var(--joy-palette-primary-softBg)'
-                  : selectedIndex === index + 1 && anchorEl && isKeyboardNavigating
+                  : selectedIndex === index + 1 &&
+                      anchorEl &&
+                      isKeyboardNavigating
                     ? 'var(--joy-palette-neutral-softHoverBg)'
                     : 'transparent',
               '&:hover': {
@@ -459,7 +473,9 @@ const ProjectSelector = ({
           sx={{
             borderRadius: 'var(--joy-radius-sm)',
             backgroundColor:
-              selectedIndex === defaultProjects.length + 1 && anchorEl && isKeyboardNavigating
+              selectedIndex === defaultProjects.length + 1 &&
+              anchorEl &&
+              isKeyboardNavigating
                 ? 'var(--joy-palette-success-softHoverBg)'
                 : 'transparent',
             '&:hover': {
@@ -494,7 +510,9 @@ const ProjectSelector = ({
           sx={{
             borderRadius: 'var(--joy-radius-sm)',
             backgroundColor:
-              selectedIndex === defaultProjects.length + 2 && anchorEl && isKeyboardNavigating
+              selectedIndex === defaultProjects.length + 2 &&
+              anchorEl &&
+              isKeyboardNavigating
                 ? 'var(--joy-palette-neutral-softHoverBg)'
                 : 'transparent',
             '&:hover': {

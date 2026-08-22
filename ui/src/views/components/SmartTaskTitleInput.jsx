@@ -2,7 +2,7 @@ import { useColorScheme } from '@mui/joy'
 import { useEffect, useRef, useState } from 'react'
 import AutocompleteDropdown from '../TestView/AutocompleteDropdown'
 import './SmartTaskTitleInput.css'
-const renderHighlightedText = (text, cursorPosition) => {
+const renderHighlightedText = text => {
   const parts = []
   let lastIndex = 0
 
@@ -53,7 +53,7 @@ const SmartTaskTitleInput = ({
   onEnterPressed,
   customRenderer,
 }) => {
-  const { mode, setMode } = useColorScheme()
+  const { mode } = useColorScheme()
   const titleInputRef = useRef(null)
   const [cursorPosition, setCursorPosition] = useState(value?.length)
   const dropdownRef = useRef(null)
@@ -73,13 +73,16 @@ const SmartTaskTitleInput = ({
         titleInputRef.current.setSelectionRange(cursorPosition, cursorPosition)
       })
     }
-  }, [value])
+  }, [value, cursorPosition])
   useEffect(() => {
-    // set focus on the input when the component is mounted:
+    // Autofocus on mount only, seeking to wherever the caret was initialised.
+    // cursorPosition is deliberately not a dependency: re-running this on every
+    // caret move would steal focus back and fight the user.
     if (titleInputRef.current) {
       titleInputRef.current.focus()
       titleInputRef.current.setSelectionRange(cursorPosition, cursorPosition)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const handleSuggestionChange = text => {
     // if the last word start with '@' or '#' or 'P':

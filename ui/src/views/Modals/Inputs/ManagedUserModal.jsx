@@ -34,7 +34,7 @@ function ManagedUserModal({ isOpen, onClose, onSuccess, managedUser = null }) {
   useEffect(() => {
     if (!isOpen) return
     setUsername(isEdit ? managedUser.username : '')
-    setDisplayName(isEdit ? (managedUser.displayName || '') : '')
+    setDisplayName(isEdit ? managedUser.displayName || '' : '')
     setPassword('')
     setConfirmPassword('')
     setErrors({})
@@ -81,7 +81,12 @@ function ManagedUserModal({ isOpen, onClose, onSuccess, managedUser = null }) {
 
   const handleSubmit = async () => {
     // Touch all fields to surface errors
-    setTouched({ username: true, displayName: true, password: true, confirmPassword: true })
+    setTouched({
+      username: true,
+      displayName: true,
+      password: true,
+      confirmPassword: true,
+    })
 
     const errs = {}
     if (!isEdit && !username.trim()) errs.username = 'Username is required'
@@ -131,9 +136,16 @@ function ManagedUserModal({ isOpen, onClose, onSuccess, managedUser = null }) {
       <FormControl error={!!errors.username} sx={{ mb: 2 }}>
         <FormLabel>{isEdit ? 'Username' : 'Username *'}</FormLabel>
         <Input
-          placeholder={isEdit ? `Keep current (${managedUser?.username})` : 'e.g. alex or kids.alex'}
+          placeholder={
+            isEdit
+              ? `Keep current (${managedUser?.username})`
+              : 'e.g. alex or kids.alex'
+          }
           value={username}
-          onChange={e => { setUsername(e.target.value); touch('username') }}
+          onChange={e => {
+            setUsername(e.target.value)
+            touch('username')
+          }}
           autoFocus={!isEdit}
         />
         {errors.username && <FormHelperText>{errors.username}</FormHelperText>}
@@ -143,11 +155,20 @@ function ManagedUserModal({ isOpen, onClose, onSuccess, managedUser = null }) {
       <FormControl error={!!errors.displayName} sx={{ mb: 2 }}>
         <FormLabel>Display Name</FormLabel>
         <Input
-          placeholder={isEdit ? `Keep current (${managedUser?.displayName || managedUser?.username})` : 'Optional — defaults to username'}
+          placeholder={
+            isEdit
+              ? `Keep current (${managedUser?.displayName || managedUser?.username})`
+              : 'Optional — defaults to username'
+          }
           value={displayName}
-          onChange={e => { setDisplayName(e.target.value); touch('displayName') }}
+          onChange={e => {
+            setDisplayName(e.target.value)
+            touch('displayName')
+          }}
         />
-        {errors.displayName && <FormHelperText>{errors.displayName}</FormHelperText>}
+        {errors.displayName && (
+          <FormHelperText>{errors.displayName}</FormHelperText>
+        )}
       </FormControl>
 
       {/* Password */}
@@ -155,9 +176,14 @@ function ManagedUserModal({ isOpen, onClose, onSuccess, managedUser = null }) {
         <FormLabel>{isEdit ? 'New Password' : 'Password *'}</FormLabel>
         <Input
           type='password'
-          placeholder={isEdit ? 'Leave blank to keep current password' : '8–64 characters'}
+          placeholder={
+            isEdit ? 'Leave blank to keep current password' : '8–64 characters'
+          }
           value={password}
-          onChange={e => { setPassword(e.target.value); touch('password') }}
+          onChange={e => {
+            setPassword(e.target.value)
+            touch('password')
+          }}
         />
         {errors.password && <FormHelperText>{errors.password}</FormHelperText>}
       </FormControl>
@@ -170,7 +196,10 @@ function ManagedUserModal({ isOpen, onClose, onSuccess, managedUser = null }) {
             type='password'
             placeholder='Confirm password'
             value={confirmPassword}
-            onChange={e => { setConfirmPassword(e.target.value); touch('confirmPassword') }}
+            onChange={e => {
+              setConfirmPassword(e.target.value)
+              touch('confirmPassword')
+            }}
           />
           {errors.confirmPassword && (
             <FormHelperText>{errors.confirmPassword}</FormHelperText>

@@ -20,7 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Button, Card, Container, Grid, Sheet, Typography } from '@mui/joy'
 import moment from 'moment'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLocalization } from '../../contexts/LocalizationContext'
 import useConfirmationModal from '../../hooks/useConfirmationModal'
@@ -39,7 +39,7 @@ import NoteViewerModal from '../Modals/Inputs/NoteViewerModal'
 import HistoryCard from './HistoryCard'
 
 const ChoreHistory = () => {
-  const [userHistory, setUserHistory] = useState([])
+  const [, setUserHistory] = useState([])
   const [historyInfo, setHistoryInfo] = useState([])
   const { choreId } = useParams()
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -48,15 +48,21 @@ const ChoreHistory = () => {
   const { fmt } = useLocalization()
   const [showMoreInfoId, setShowMoreInfoId] = useState(null)
   const [noteViewerConfig, setNoteViewerConfig] = useState({ isOpen: false })
-  const { showSuccess, showError } = useNotification()
+  const { showSuccess } = useNotification()
   // React Query hooks
   const { data: choreHistoryData, isLoading } = useChoreHistory(choreId)
   const { data: circleMembersData } = useCircleMembers()
   const updateChoreHistory = useUpdateChoreHistory()
   const deleteChoreHistory = useDeleteChoreHistory()
 
-  const choreHistory = choreHistoryData?.res || []
-  const performers = circleMembersData?.res || []
+  const choreHistory = useMemo(
+    () => choreHistoryData?.res || [],
+    [choreHistoryData],
+  )
+  const performers = useMemo(
+    () => circleMembersData?.res || [],
+    [circleMembersData],
+  )
 
   const handleDelete = historyEntry => {
     showConfirmation(
@@ -194,8 +200,8 @@ const ChoreHistory = () => {
           No History Yet
         </Typography>
         <Typography level='body1'>
-          You haven't completed any tasks. Once you start finishing tasks,
-          they'll show up here.
+          You haven&apos;t completed any tasks. Once you start finishing tasks,
+          they&apos;ll show up here.
         </Typography>
         <Button variant='soft' sx={{ mt: 2 }}>
           <Link to='/chores'>Go back to chores</Link>

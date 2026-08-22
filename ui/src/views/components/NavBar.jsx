@@ -18,7 +18,6 @@ import {
   Widgets,
 } from '@mui/icons-material'
 import {
-  Badge,
   Box,
   Chip,
   Drawer,
@@ -175,17 +174,19 @@ const NavBar = () => {
     publicPages.includes(location.pathname) ||
     window.location.hostname === 'www.donetick.com' ||
     window.location.hostname === 'donetick.com'
-  const { data: projects = [] } = useProjects({ enabled: !isPublicPage && !!userProfile })
+  const { data: projects = [] } = useProjects({
+    enabled: !isPublicPage && !!userProfile,
+  })
   const circleMembers = circleMembersData?.res || []
-  const isAdmin = circleMembers.find(m => m.userId === userProfile?.id)?.role === 'admin'
+  const isAdmin =
+    circleMembers.find(m => m.userId === userProfile?.id)?.role === 'admin'
   const pendingApprovalCount = isAdmin
     ? projects.reduce(
-        (sum, p) =>
-          sum + (p.tasks || []).filter(t => t.status === 1).length,
+        (sum, p) => sum + (p.tasks || []).filter(t => t.status === 1).length,
         0,
       )
     : 0
-  
+
   const links = [
     {
       to: '/dashboard',
@@ -337,7 +338,9 @@ const NavBar = () => {
           }
         }}
         title={
-          searchParams.get('from') === 'calendar' ? t('backToCalendar') : t('back')
+          searchParams.get('from') === 'calendar'
+            ? t('backToCalendar')
+            : t('back')
         }
       >
         <ArrowBack />

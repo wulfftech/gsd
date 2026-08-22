@@ -1,3 +1,34 @@
-# Shell scripts must keep LF endings - they run on the Linux deploy host,
-# where a CRLF shebang fails with "bad interpreter: /usr/bin/env bash^M".
-*.sh text eol=lf
+# Normalise line endings in the repository.
+#
+# `text=auto` stores every text file as LF in git regardless of a
+# contributor's core.autocrlf setting, so CRLF blobs can never land in
+# history. Working-tree endings stay platform-native (CRLF on Windows), and
+# Prettier's endOfLine:auto follows whatever is on disk, so this costs
+# Windows developers nothing.
+* text=auto
+
+# Files that must be LF even in a Windows working tree, because they are
+# executed by POSIX shells or consumed by Linux tooling, where a stray CR
+# becomes part of the shebang or the value.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+.env*           text eol=lf
+
+# Explicit binary marking, so git never attempts EOL conversion or diffing.
+*.png           binary
+*.webp          binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.pdf           binary
+*.keystore      binary
+
+# Generated lockfiles: collapse by default in GitHub diffs, but keep them
+# textually diffable locally so dependency changes stay reviewable.
+package-lock.json   linguist-generated=true
+go.sum              linguist-generated=true

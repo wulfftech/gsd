@@ -88,6 +88,7 @@ func (s *Scheduler) loadAndSendNotificationJob(c context.Context) (time.Duration
 	s.notificationRepo.MarkNotificationsAsSent(getAllPendingNotifications)
 	return time.Since(startTime), nil
 }
+
 // missOverdueChoresJob finds all active recurring chores whose due date has
 // passed, marks each missed period as ChoreHistoryStatusMissed, and advances
 // NextDueDate to the next future occurrence.  This keeps the chore list clean

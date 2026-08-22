@@ -2,16 +2,9 @@ import { Box, Button, Container, Typography } from '@mui/joy'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useState } from 'react'
 import Logo from '../Logo'
 const Home = () => {
   const Navigate = useNavigate()
-  const getCurrentUser = () => {
-    return JSON.parse(localStorage.getItem('user'))
-  }
-  const [users, setUsers] = useState([])
-  const [currentUser, setCurrentUser] = useState(getCurrentUser())
-
   useEffect(() => {}, [])
 
   return (

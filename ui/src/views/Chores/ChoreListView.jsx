@@ -33,7 +33,7 @@ const ChoreListView = ({
   toggleChoreSelection,
   userProfile,
   isOfficialInstance,
-  toggleMultiSelectMode,
+
   showActions = true,
   onChoreOpen,
 }) => {

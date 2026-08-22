@@ -168,6 +168,9 @@ const MFASettings = () => {
     }
   }
 
+  // TODO: dead code -- never called, so backup codes cannot be regenerated from the UI.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const handleRegenerateBackupCodes = async () => {
     try {
       setError('')
@@ -347,7 +350,7 @@ const MFASettings = () => {
                   onClick={() => setSetupStep(2)}
                   startDecorator={<Smartphone />}
                 >
-                  I've added the account to my app
+                  I&apos;ve added the account to my app
                 </Button>
               </Stack>
             )}
@@ -439,7 +442,7 @@ const MFASettings = () => {
                 </Card>
 
                 <Button color='primary' onClick={closeSetupModal}>
-                  I've saved my backup codes
+                  I&apos;ve saved my backup codes
                 </Button>
               </Stack>
             )}
@@ -550,7 +553,7 @@ const MFASettings = () => {
                 color='primary'
                 onClick={() => setBackupCodesModalOpen(false)}
               >
-                I've saved my backup codes
+                I&apos;ve saved my backup codes
               </Button>
             </Stack>
           </ModalDialog>

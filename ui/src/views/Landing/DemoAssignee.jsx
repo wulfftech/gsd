@@ -25,7 +25,7 @@ const DemoAssignee = () => {
       displayName: 'Ryan',
     },
   ])
-  const [assignedTo, setAssignedTo] = useState(3)
+  const [assignedTo] = useState(3)
   const performers = [
     {
       userId: 1,
@@ -109,7 +109,7 @@ const DemoAssignee = () => {
           >
             {performers
               ?.filter(p => assignees.find(a => a.userId == p.userId))
-              .map((item, index) => (
+              .map(item => (
                 <Option
                   value={item.id}
                   key={item.displayName}
@@ -142,7 +142,7 @@ const DemoAssignee = () => {
                 '--ListItem-radius': '20px',
               }}
             >
-              {ASSIGN_STRATEGIES.map((item, idx) => (
+              {ASSIGN_STRATEGIES.map(item => (
                 <ListItem key={item}>
                   <Checkbox
                     // disabled={index === 0}

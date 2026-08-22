@@ -1,13 +1,16 @@
 # Backend
 donetick.db
 *.db
+*.db-shm
+*.db-wal
+*.db.bak-*
 .vscode/launch.json
 .env.local
 
 # Frontend
 ui/node_modules/
 ui/dist/
-ui/.husky/
+ui/.husky/_/
 ui/android/
 ui/ios/
 

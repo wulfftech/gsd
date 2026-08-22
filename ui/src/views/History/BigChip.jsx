@@ -1,6 +1,4 @@
 import Chip from '@mui/joy/Chip'
-import * as React from 'react'
-
 function BigChip(props) {
   return (
     <Chip

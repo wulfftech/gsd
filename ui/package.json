@@ -14,6 +14,7 @@
     ]
   },
   "scripts": {
+    "prepare": "cd .. && husky install ui/.husky",
     "start": "vite --host",
     "dev": "vite",
     "build": "vite build",
@@ -115,6 +116,7 @@
     "eslint-plugin-sort-keys-fix": "^1.1.2",
     "eslint-plugin-tailwindcss": "^3.13.1",
     "husky": "^8.0.3",
+    "lint-staged": "^15.5.2",
     "postcss": "^8.4.32",
     "prettier": "^3.1.1",
     "prettier-plugin-tailwindcss": "^0.5.10",
