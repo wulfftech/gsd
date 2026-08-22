@@ -1,7 +1,7 @@
 import { ArrowBack, Refresh } from '@mui/icons-material'
 import { Box, CircularProgress, IconButton, Typography } from '@mui/joy'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useResponsiveModal } from '../../hooks/useResponsiveModal'
 import ChoreView from './ChoreView'
 
@@ -38,37 +38,49 @@ const ChoreViewModal = ({ choreId, open, onClose, choreName }) => {
   const normalizedChoreId = choreId != null ? String(choreId) : null
 
   // Read the chore's name out of the same React Query cache entry ChoreView populates
-  // via useChoreDetails, instead of fetching it again here. We subscribe to the query
-  // cache directly (rather than mounting a second useQuery observer) so this component
-  // never triggers a fetch of its own — it only ever reads what ChoreView (or an SSE
-  // cache write) has already put there — while still updating the header live once that
-  // data shows up or changes.
-  const [cachedChore, setCachedChore] = useState(() =>
-    normalizedChoreId
-      ? queryClient.getQueryData(['choreDetails', normalizedChoreId])
-      : undefined,
+  // via useChoreDetails, instead of fetching it again here. Subscribing to the query
+  // cache directly (rather than mounting a second useQuery observer) means this
+  // component never triggers a fetch of its own - it only reads what ChoreView (or an
+  // SSE cache write) has already put there - while still updating the header live.
+  //
+  // This goes through useSyncExternalStore rather than useState + an effect: the cache
+  // emits synchronously while ChoreView's own observer is being set up, i.e. during a
+  // child's render, and calling setState from there warns "Cannot update a component
+  // while rendering a different component". useSyncExternalStore is built for exactly
+  // this and schedules the update safely.
+  const subscribeToChoreDetails = useCallback(
+    onStoreChange => {
+      if (!normalizedChoreId) {
+        return () => {}
+      }
+      return queryClient.getQueryCache().subscribe(event => {
+        const eventKey = event?.query?.queryKey
+        if (
+          eventKey?.[0] === 'choreDetails' &&
+          eventKey?.[1] === normalizedChoreId
+        ) {
+          onStoreChange()
+        }
+      })
+    },
+    [queryClient, normalizedChoreId],
   )
 
-  useEffect(() => {
-    if (!normalizedChoreId) {
-      return undefined
-    }
-    setCachedChore(
-      queryClient.getQueryData(['choreDetails', normalizedChoreId]),
-    )
-    const unsubscribe = queryClient.getQueryCache().subscribe(event => {
-      const eventKey = event?.query?.queryKey
-      if (
-        eventKey?.[0] === 'choreDetails' &&
-        eventKey?.[1] === normalizedChoreId
-      ) {
-        setCachedChore(
-          queryClient.getQueryData(['choreDetails', normalizedChoreId]),
-        )
-      }
-    })
-    return unsubscribe
-  }, [queryClient, normalizedChoreId])
+  // getQueryData returns the same object reference until the entry actually changes,
+  // so this is a stable snapshot and will not loop.
+  const getChoreDetailsSnapshot = useCallback(
+    () =>
+      normalizedChoreId
+        ? queryClient.getQueryData(['choreDetails', normalizedChoreId])
+        : undefined,
+    [queryClient, normalizedChoreId],
+  )
+
+  const cachedChore = useSyncExternalStore(
+    subscribeToChoreDetails,
+    getChoreDetailsSnapshot,
+    getChoreDetailsSnapshot,
+  )
 
   if (!open || choreId == null) {
     return null
