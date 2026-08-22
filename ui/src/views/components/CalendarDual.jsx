@@ -1,12 +1,14 @@
 import { Box, Typography } from '@mui/joy'
 import { useEffect, useState } from 'react'
 import Calendar from 'react-calendar'
-import { useNavigate } from 'react-router-dom'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { getPriorityColor, TASK_COLOR } from '../../utils/Colors'
 import { useLocalization } from '../../contexts/LocalizationContext'
 import styles from './CalendarDual.module.css'
 
+// TODO: dead code -- never called.
+// Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+// eslint-disable-next-line no-unused-vars
 const getAssigneeColor = (assignee, userProfile) => {
   return assignee === userProfile.id
     ? TASK_COLOR.ASSIGNED_TO_ME
@@ -29,8 +31,6 @@ const CalendarDual = ({ chores, onDateChange }) => {
     next.setMonth(next.getMonth() + 1)
     return next
   })
-  const Navigate = useNavigate()
-
   // Fetch circle members data to get assignee names
   const { data: circleMembersData } = useCircleMembers()
   const circleMembers = circleMembersData?.res || []
@@ -43,6 +43,9 @@ const CalendarDual = ({ chores, onDateChange }) => {
   }, [currentDate])
 
   // Helper function to get assignee display name
+  // TODO: dead code -- never called.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const getAssigneeName = assignedTo => {
     if (assignedTo === userProfile.id) {
       return userProfile.displayName

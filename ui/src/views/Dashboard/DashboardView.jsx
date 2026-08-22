@@ -14,7 +14,7 @@ import {
 } from '@mui/joy'
 import { useNavigate } from 'react-router-dom'
 import { useChores, useChoresHistory } from '../../queries/ChoreQueries'
-import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
+import { useCircleMembers } from '../../queries/UserQueries'
 import { resolvePhotoURL } from '../../utils/Helpers'
 import { useProjects } from '../Projects/ProjectQueries'
 
@@ -402,7 +402,6 @@ const DashboardView = () => {
   const { data: choresData, isLoading: choresLoading } = useChores(false)
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: circleMembersData } = useCircleMembers()
-  const { data: userProfile } = useUserProfile()
   const { data: historyRaw } = useChoresHistory(100, false)
   // Normalise: useChoresHistory may return an array or {res:[]} depending on cache state
   const history = Array.isArray(historyRaw) ? historyRaw : historyRaw?.res || []

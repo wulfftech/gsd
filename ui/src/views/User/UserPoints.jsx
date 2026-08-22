@@ -804,9 +804,6 @@ const UserPoints = () => {
           const redeemedPoints = selectedUserData?.pointsRedeemed || 0
           const availablePoints = totalPoints
 
-          const periodStats = leaderboardData.find(
-            user => user.userId === selectedUser,
-          )
           const periodPoints = selectedHistory.reduce(
             (sum, item) => sum + (item.points || 0),
             0,

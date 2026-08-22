@@ -18,15 +18,20 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
-  const baseURL = apiClient.getApiURL()
   const isAuthenticated = !!token
 
+  // TODO: dead code -- never called; expiry is checked in ApiClient instead.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const isTokenExpired = () => {
     const expiry = localStorage.getItem('token_expiry')
     if (!expiry) return false
     return new Date() >= new Date(expiry)
   }
 
+  // TODO: dead code -- never called, so this logout path is unreachable.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const clearAuth = async () => {
     setToken(null)
     setUser(null)

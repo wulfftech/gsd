@@ -140,7 +140,6 @@ function BackupRestoreModal({ isOpen, onClose, showNotification }) {
           const response = await RestoreBackup(restoreEncryptionKey, backupData)
 
           if (response.ok) {
-            const data = await response.json()
             showNotification({
               type: 'success',
               message: 'Backup restored successfully. Please refresh the page.',

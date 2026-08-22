@@ -525,7 +525,6 @@ export const parseRepeatV2 = inputSentence => {
 }
 
 export const parseAssignees = (inputSentence, users) => {
-  const sentence = inputSentence.toLowerCase()
   const result = []
   const highlight = []
   const matchedTexts = []

@@ -80,6 +80,9 @@ const UserProfileAvatar = () => {
     apiClient.handleLogout()
   }
 
+  // TODO: dead code -- never called, so no control opens a support email.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const handleSupportEmail = () => {
     window.location.href = 'mailto:support@donetick.com'
   }

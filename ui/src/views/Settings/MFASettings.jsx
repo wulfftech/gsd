@@ -168,6 +168,9 @@ const MFASettings = () => {
     }
   }
 
+  // TODO: dead code -- never called, so backup codes cannot be regenerated from the UI.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const handleRegenerateBackupCodes = async () => {
     try {
       setError('')

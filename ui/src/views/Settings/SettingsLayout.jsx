@@ -1,9 +1,5 @@
 import { Box, Container, Typography } from '@mui/joy'
-import { useNavigate } from 'react-router-dom'
-
 const SettingsLayout = ({ title, children }) => {
-  const navigate = useNavigate()
-
   return (
     <Container>
       <Box sx={{ py: 2 }}>

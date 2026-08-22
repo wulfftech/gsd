@@ -42,6 +42,9 @@ const TimerSplitButton = ({
     handleMenuClose()
   }
 
+  // TODO: dead code -- never called, so no control resets the timer.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const handleResetTimer = () => {
     onResetTimer()
     handleMenuClose()

@@ -629,6 +629,9 @@ const MyChores = () => {
     [chores],
   )
 
+  // TODO: dead code -- index is built every render and never queried.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const fuse = useMemo(
     () => new Fuse(processedChoresForSearch, searchOptions),
     [processedChoresForSearch, searchOptions],

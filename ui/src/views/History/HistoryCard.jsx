@@ -104,6 +104,9 @@ const HistoryCard = ({
   const performer = performers.find(p => p.userId === historyEntry.completedBy)
   const assignedTo = performers.find(p => p.userId === historyEntry.assignedTo)
 
+  // TODO: dead code -- never called.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const formatTimeDifference = (startDate, endDate) => {
     const diffInMinutes = moment(startDate).diff(endDate, 'minutes')
     let timeValue = diffInMinutes

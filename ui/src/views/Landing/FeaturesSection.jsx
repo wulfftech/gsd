@@ -14,11 +14,9 @@ import {
   Settings,
   Timer,
 } from '@mui/icons-material'
-import { Box, Card, Container, Grid, Typography, useTheme } from '@mui/joy'
+import { Box, Card, Container, Grid, Typography } from '@mui/joy'
 
 const FeaturesSection = () => {
-  const theme = useTheme()
-
   const features = [
     {
       icon: <Psychology />,

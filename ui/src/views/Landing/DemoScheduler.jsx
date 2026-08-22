@@ -3,7 +3,6 @@ import { useState } from 'react'
 import RepeatSection from '../ChoreEdit/RepeatSection'
 
 const DemoScheduler = () => {
-  const [, setAssignees] = useState([])
   const [frequency, setFrequency] = useState(2)
   const [frequencyType, setFrequencyType] = useState('weekly')
   const [frequencyMetadata, setFrequencyMetadata] = useState({

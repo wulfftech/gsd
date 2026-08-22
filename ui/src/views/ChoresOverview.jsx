@@ -80,6 +80,9 @@ const ChoresOverview = () => {
         return 'neutral'
     }
   }
+  // TODO: dead code -- never called (whole view is unrouted).
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const getChoreStatusIcon = chore => {
     switch (getChoreStatus(chore)) {
       case CHORE_STATUS.NO_DUE_DATE:
@@ -99,9 +102,6 @@ const ChoresOverview = () => {
     GetChores()
       .then(response => response.json())
       .then(data => {
-        const filteredData = data.res.filter(
-          chore => chore.assignedTo === activeUserId || chore.assignedTo === 0,
-        )
         setChores(data.res)
         setFilteredChores(data.res)
       })

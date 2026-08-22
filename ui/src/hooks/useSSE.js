@@ -261,6 +261,9 @@ export const useSSE = () => {
   }, [])
 
   // Centralized reconnect scheduling function to prevent duplicate scheduling
+  // TODO: dead code -- never called, so a dropped SSE stream never reconnects.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const scheduleReconnect = useCallback((delay, reason) => {
     // Prevent duplicate scheduling
     if (isReconnectScheduledRef.current) {

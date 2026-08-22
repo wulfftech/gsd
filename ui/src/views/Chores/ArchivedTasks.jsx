@@ -22,9 +22,7 @@ import {
 } from '@mui/joy'
 import Fuse from 'fuse.js'
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
-import { useImpersonateUser } from '../../contexts/ImpersonateUserContext.jsx'
 import { useUnArchiveChore } from '../../queries/ChoreQueries'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { useNotification } from '../../service/NotificationProvider'
@@ -40,13 +38,11 @@ const ArchivedTasks = () => {
   const { data: userProfile, isLoading: isUserProfileLoading } =
     useUserProfile()
   const { showSuccess, showError } = useNotification()
-  const { impersonatedUser } = useImpersonateUser()
   const unArchiveChore = useUnArchiveChore()
   const [archivedChores, setArchivedChores] = useState([])
   const [filteredChores, setFilteredChores] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [performers, setPerformers] = useState([])
-  const navigate = useNavigate()
   const [viewMode, setViewMode] = useState(
     localStorage.getItem('archivedChoreCardViewMode') || 'default',
   )
@@ -439,6 +435,9 @@ const ArchivedTasks = () => {
   }
 
   // Helper function to render the appropriate card component
+  // TODO: dead code -- never called; the list renders inline instead.
+  // Kept deliberately rather than deleted; decide whether to wire it up or drop it.
+  // eslint-disable-next-line no-unused-vars
   const renderChoreCard = (chore, key) => {
     const CardComponent = viewMode === 'compact' ? CompactChoreCard : ChoreCard
     return (

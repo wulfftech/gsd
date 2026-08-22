@@ -72,8 +72,6 @@ export const useUpdate = () => {
 }
 
 export const useCompleteSubTask = () => {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: async (subTaskId, choreId, completedAt) => {
       if (!networkManager.isOnline) {

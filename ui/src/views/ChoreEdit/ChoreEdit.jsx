@@ -76,8 +76,6 @@ const ChoreEdit = () => {
     useUserProfile()
 
   const [chore, setChore] = useState([])
-  const [, setChoresHistory] = useState([])
-  const [, setUserHistory] = useState({})
   const { choreId } = useParams()
   const [searchParams] = useSearchParams()
   const [name, setName] = useState('')
@@ -118,8 +116,6 @@ const ChoreEdit = () => {
   const [attemptToSave, setAttemptToSave] = useState(false)
   const [addLabelModalOpen, setAddLabelModalOpen] = useState(false)
   const [showSavePrivacyDefault, setShowSavePrivacyDefault] = useState(false)
-  const [, setPrivacySaved] = useState(false)
-  const [, setShowSaveNotificationDefault] = useState(false)
   const [showSaveAssigneeDefault, setShowSaveAssigneeDefault] = useState(false)
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
 

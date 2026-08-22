@@ -6,8 +6,6 @@ import {
 } from '@mui/icons-material'
 import { FormControl, IconButton, useColorScheme } from '@mui/joy'
 
-const ELEMENTID = 'select-theme-mode'
-
 const ThemeToggleButton = ({ sx }) => {
   const { mode, setMode } = useColorScheme()
   const [themeMode, setThemeMode] = useStickyState(mode, 'themeMode')
