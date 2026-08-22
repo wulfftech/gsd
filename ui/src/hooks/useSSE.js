@@ -114,7 +114,7 @@ export const useSSE = () => {
             const updatedChore = eventData.data.chore
 
             // Update individual chore cache
-            queryClient.setQueryData(['chore', updatedChore.id], oldData => {
+            queryClient.setQueryData(['chore', String(updatedChore.id)], oldData => {
               if (!oldData) return { res: updatedChore }
               return { res: { ...oldData.res, ...updatedChore } }
             })
@@ -124,10 +124,14 @@ export const useSSE = () => {
               eventData.type === 'chore.updated' ||
               eventData.type === 'chore.status'
             ) {
-              queryClient.invalidateQueries(['choreDetails', updatedChore.id])
-              queryClient.refetchQueries({
-                queryKey: ['choreDetails', updatedChore.id],
-              })
+              // Ids arriving over SSE are numeric, but choreDetails is cached
+              // under the string id from the URL param - so coerce, or the
+              // invalidation silently misses. Same reason as the subtask
+              // handler below. The object form is required by react-query v5;
+              // the old array form matches every query and nukes the cache.
+              const choreDetailsKey = ['choreDetails', String(updatedChore.id)]
+              queryClient.invalidateQueries({ queryKey: choreDetailsKey })
+              queryClient.refetchQueries({ queryKey: choreDetailsKey })
             }
 
             // Update chores list cache - add debugging
