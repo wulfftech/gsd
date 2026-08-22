@@ -50,6 +50,7 @@ import { useNotification } from '../../service/NotificationProvider'
 import { resolvePhotoURL } from '../../utils/Helpers'
 import { getSafeBottom } from '../../utils/SafeAreaUtils'
 import LoadingComponent from '../components/Loading'
+import ConfirmationModal from '../Modals/Inputs/ConfirmationModal'
 
 const TimerDetails = () => {
   const { choreId } = useParams()
@@ -60,6 +61,7 @@ const TimerDetails = () => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [timerActionLoading, setTimerActionLoading] = useState(false)
   const [showMoreInfoId, setShowMoreInfoId] = useState(null)
+  const [confirmDeleteConfig, setConfirmDeleteConfig] = useState({})
   const { showError, showSuccess } = useNotification()
 
   // Fetch circle members data
@@ -341,11 +343,75 @@ const TimerDetails = () => {
     startEditingSession()
   }
 
-  const handleDeleteSession = sessionIndex => {
-    // For now, just show an alert since we'd need to implement session deletion API
-    showError({
+  const handleDeleteSession = pauseIndex => {
+    const entries = timerData?.pauseLog
+    const entry = entries?.[pauseIndex]
+    if (!timerData?.id || !entry) return
+
+    // An entry with no end time is the interval being timed right now.
+    // Removing it out from under a running timer leaves the session in a
+    // state the resume path cannot reconcile, so refuse instead.
+    if (!entry.end) {
+      showError({
+        title: 'Cannot delete a running interval',
+        message: 'Pause or stop the timer first, then delete it.',
+      })
+      return
+    }
+
+    setConfirmDeleteConfig({
+      isOpen: true,
       title: 'Delete Session',
-      message: `Session #${sessionIndex + 1} deletion would be implemented here`,
+      message: `Delete Session #${pauseIndex + 1}? Its recorded time is removed from this chore's total.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      color: 'danger',
+      onClose: isConfirmed => {
+        setConfirmDeleteConfig({})
+        if (!isConfirmed) return
+
+        // DELETE /chores/:id/timer/:session_id drops the whole TimeSession
+        // row - every interval at once - which is not what a swipe on a
+        // single row should do. Instead PUT the pauseLog back without this
+        // entry; UpdateTimeSession recalculates the duration server-side.
+        updateTimeSession.mutate(
+          {
+            choreId,
+            sessionId: timerData.id,
+            sessionData: {
+              startTime: new Date(timerData.startTime).toISOString(),
+              endTime: timerData.endTime
+                ? new Date(timerData.endTime).toISOString()
+                : null,
+              pauseLog: entries.filter((_, index) => index !== pauseIndex),
+            },
+          },
+          {
+            onSuccess: response => {
+              // The mutationFn returns the raw fetch Response, which does
+              // not throw on 4xx/5xx - check before claiming success.
+              if (!response?.ok) {
+                showError({
+                  title: 'Failed to delete session',
+                  message: 'Please try again.',
+                })
+                return
+              }
+              showSuccess({
+                title: 'Session deleted',
+                message: 'The time entry has been removed.',
+              })
+              refetchTimer()
+            },
+            onError: error => {
+              showError({
+                title: 'Failed to delete session',
+                message: error?.message || 'Please try again.',
+              })
+            },
+          },
+        )
+      },
     })
   }
 
@@ -698,7 +764,7 @@ const TimerDetails = () => {
 
                           return (
                             <Box
-                              key={index}
+                              key={session.start}
                               sx={{
                                 position: 'absolute',
                                 left: `${leftPercent}%`,
@@ -1396,6 +1462,7 @@ const TimerDetails = () => {
           )}
         </IconButton>
       )}
+      <ConfirmationModal config={confirmDeleteConfig} />
     </Container>
   )
 }
