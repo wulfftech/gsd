@@ -90,10 +90,11 @@ const SignupView = () => {
       isValid = false
     }
 
-    // username should only contain lowercase letters, dot and dash:
-    if (!/^[a-z.-]+$/.test(username)) {
+    // Mirrors IsValidUsername in internal/utils/validation.go. Keep the hyphen
+    // last in the character class -- anywhere else it reads as a range.
+    if (!/^[a-z0-9.@-]+$/.test(username)) {
       setUsernameError(
-        'Username can only contain lowercase letters, dot and dash',
+        'Username can only contain lowercase letters (a-z), numbers (0-9), dots (.), and hyphens (-)',
       )
       isValid = false
     }
