@@ -89,6 +89,30 @@ git version, commit, and build date into the binary. Plain `docker compose build
 still works, but leaves all three reading `dev`, which makes deployed builds
 impossible to tell apart.
 
+To confirm which build is running, check the first line of `docker logs gsd`, or
+`GET /api/v1/health`'s neighbour `GET /api/v1/resource`, which reports
+`api_version` and `api_commit`.
+
+## Database backups
+
+On SQLite deployments the app snapshots the database before running migrations,
+writing `donetick.db.bak-<timestamp>` beside it in the data directory. The WAL is
+checkpointed first, so each snapshot is a single self-contained file — you do not
+need the `-wal`/`-shm` sidecars to restore one.
+
+```bash
+sqlite3 donetick.db.bak-20260823-190126 "PRAGMA integrity_check;"
+```
+
+These snapshots are never pruned; delete old ones yourself as they accumulate. They
+are also only as recent as the last restart, so they are a migration safety net, not
+a backup strategy — schedule something external if the data matters.
+
+If you copy the live database by hand, stop the container first. A running instance
+keeps recent writes in `donetick.db-wal`, so copying `donetick.db` on its own while
+the app is up gives you a database missing everything since the last checkpoint.
+Shutdown checkpoints the WAL, so a stopped container leaves a complete single file.
+
 ---
 
 *Forked from [donetick/donetick](https://github.com/donetick/donetick). Upstream licence applies — see [LICENSE.md](LICENSE.md).*
