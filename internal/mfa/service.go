@@ -13,7 +13,8 @@ import (
 )
 
 type MFAService struct {
-	appName string
+	appName        string
+	attemptLimiter *AttemptLimiter
 }
 
 func NewService(cfg *config.Config) *MFAService {
@@ -22,8 +23,28 @@ func NewService(cfg *config.Config) *MFAService {
 		appName = cfg.Name
 	}
 	return &MFAService{
-		appName: appName,
+		appName:        appName,
+		attemptLimiter: NewAttemptLimiter(cfg.MFAConfig.MaxVerificationAttempts, cfg.MFAConfig.RateLimitWindow),
 	}
+}
+
+// AllowVerificationAttempt reports whether another MFA code verification
+// attempt is currently permitted for key (callers key this on the resolved
+// user ID, not on a session/request token, so an attacker can't reset the
+// budget by minting a fresh token).
+func (s *MFAService) AllowVerificationAttempt(key string) bool {
+	return s.attemptLimiter.Allow(key)
+}
+
+// RecordVerificationFailure registers a failed MFA code verification for key.
+func (s *MFAService) RecordVerificationFailure(key string) {
+	s.attemptLimiter.RecordFailure(key)
+}
+
+// ResetVerificationAttempts clears the failure count for key. Call this on
+// every successful verification.
+func (s *MFAService) ResetVerificationAttempts(key string) {
+	s.attemptLimiter.Reset(key)
 }
 
 func (s *MFAService) GenerateSecret(userEmail string) (*otp.Key, error) {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -962,6 +963,12 @@ func (h *Handler) CreateLongLivedToken(c *gin.Context) {
 
 	// If user has MFA enabled and provides an MFA code, verify it
 	if currentUser.MFAEnabled && req.MFACode != "" {
+		mfaKey := strconv.Itoa(currentUser.ID)
+		if !h.mfaService.AllowVerificationAttempt(mfaKey) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": mfa.TooManyAttemptsMessage})
+			return
+		}
+
 		valid, newUsedCodes, err := h.mfaService.IsCodeValid(
 			currentUser.MFASecret,
 			currentUser.MFABackupCodes,
@@ -975,9 +982,11 @@ func (h *Handler) CreateLongLivedToken(c *gin.Context) {
 		}
 
 		if !valid {
+			h.mfaService.RecordVerificationFailure(mfaKey)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid MFA code"})
 			return
 		}
+		h.mfaService.ResetVerificationAttempts(mfaKey)
 
 		// Update used codes if a backup code was used
 		if newUsedCodes != currentUser.MFARecoveryUsed {

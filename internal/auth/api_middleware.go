@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"strconv"
 
 	"donetick.com/core/config"
 	"donetick.com/core/internal/mfa"
@@ -62,6 +63,13 @@ func OptionalMFAMiddleware(userRepo *uRepo.UserRepository, mfaService *mfa.MFASe
 		// Check if user has MFA enabled and if an MFA code is provided
 		mfaCode := c.GetHeader("X-MFA-Code")
 		if userDetails.MFAEnabled && mfaCode != "" {
+			mfaKey := strconv.Itoa(userDetails.ID)
+			if !mfaService.AllowVerificationAttempt(mfaKey) {
+				c.JSON(http.StatusTooManyRequests, gin.H{"error": mfa.TooManyAttemptsMessage})
+				c.Abort()
+				return
+			}
+
 			valid, newUsedCodes, err := mfaService.IsCodeValid(
 				userDetails.MFASecret,
 				userDetails.MFABackupCodes,
@@ -77,10 +85,12 @@ func OptionalMFAMiddleware(userRepo *uRepo.UserRepository, mfaService *mfa.MFASe
 			}
 
 			if !valid {
+				mfaService.RecordVerificationFailure(mfaKey)
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid MFA code"})
 				c.Abort()
 				return
 			}
+			mfaService.ResetVerificationAttempts(mfaKey)
 
 			// Update used codes if a backup code was used
 			if newUsedCodes != userDetails.MFARecoveryUsed {

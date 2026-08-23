@@ -2,8 +2,10 @@ package user
 
 import (
 	"net/http"
+	"strconv"
 
 	auth "donetick.com/core/internal/auth"
+	"donetick.com/core/internal/mfa"
 	uModel "donetick.com/core/internal/user/model"
 	"donetick.com/core/logging"
 	"github.com/gin-gonic/gin"
@@ -76,11 +78,19 @@ func (h *Handler) confirmMFA(c *gin.Context) {
 		return
 	}
 
+	mfaKey := strconv.Itoa(currentUser.ID)
+	if !h.mfaService.AllowVerificationAttempt(mfaKey) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": mfa.TooManyAttemptsMessage})
+		return
+	}
+
 	// Verify the TOTP code
 	if !h.mfaService.VerifyTOTP(req.Secret, req.Code) {
+		h.mfaService.RecordVerificationFailure(mfaKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
 		return
 	}
+	h.mfaService.ResetVerificationAttempts(mfaKey)
 
 	// Enable MFA in database
 	if err := h.userRepo.EnableMFA(c, currentUser.ID, req.Secret, req.BackupCodes); err != nil {
@@ -113,6 +123,12 @@ func (h *Handler) disableMFA(c *gin.Context) {
 		return
 	}
 
+	mfaKey := strconv.Itoa(currentUser.ID)
+	if !h.mfaService.AllowVerificationAttempt(mfaKey) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": mfa.TooManyAttemptsMessage})
+		return
+	}
+
 	// Verify the code before disabling
 	valid, newUsedCodes, err := h.mfaService.IsCodeValid(
 		currentUser.MFASecret,
@@ -128,9 +144,11 @@ func (h *Handler) disableMFA(c *gin.Context) {
 	}
 
 	if !valid {
+		h.mfaService.RecordVerificationFailure(mfaKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
 		return
 	}
+	h.mfaService.ResetVerificationAttempts(mfaKey)
 
 	// Update used codes if a backup code was used
 	if newUsedCodes != currentUser.MFARecoveryUsed {
@@ -174,6 +192,17 @@ func (h *Handler) verifyMFA(c *gin.Context) {
 		return
 	}
 
+	// Rate-limit on the resolved user ID, not the session token: this is the
+	// unauthenticated login-flow endpoint, and a session token is trivial for
+	// an attacker who already has valid credentials to mint again (it's
+	// re-issued on every successful password/OIDC login), which would reset
+	// a per-token attempt budget for free.
+	mfaKey := strconv.Itoa(user.ID)
+	if !h.mfaService.AllowVerificationAttempt(mfaKey) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": mfa.TooManyAttemptsMessage})
+		return
+	}
+
 	// Verify the MFA code
 	valid, newUsedCodes, err := h.mfaService.IsCodeValid(
 		user.MFASecret,
@@ -189,9 +218,11 @@ func (h *Handler) verifyMFA(c *gin.Context) {
 	}
 
 	if !valid {
+		h.mfaService.RecordVerificationFailure(mfaKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
 		return
 	}
+	h.mfaService.ResetVerificationAttempts(mfaKey)
 
 	// Update used codes if a backup code was used
 	if newUsedCodes != user.MFARecoveryUsed {
@@ -256,11 +287,19 @@ func (h *Handler) regenerateBackupCodes(c *gin.Context) {
 		return
 	}
 
+	mfaKey := strconv.Itoa(currentUser.ID)
+	if !h.mfaService.AllowVerificationAttempt(mfaKey) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": mfa.TooManyAttemptsMessage})
+		return
+	}
+
 	// Verify the current TOTP code
 	if !h.mfaService.VerifyTOTP(currentUser.MFASecret, req.Code) {
+		h.mfaService.RecordVerificationFailure(mfaKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
 		return
 	}
+	h.mfaService.ResetVerificationAttempts(mfaKey)
 
 	// Generate new backup codes
 	newBackupCodes, err := h.mfaService.GenerateBackupCodes(8)
