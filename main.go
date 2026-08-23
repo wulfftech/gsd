@@ -125,6 +125,14 @@ func main() {
 		cfg.Logging.Encoding,
 		cfg.Logging.Development,
 	)
+
+	// Report the build stamped in by -ldflags (see scripts/build.sh). Without
+	// this the version metadata is written into the binary and never read, so
+	// a running instance can't be told apart from any other build. Logged
+	// rather than exposed over HTTP to keep the version off an unauthenticated
+	// endpoint.
+	logging.DefaultLogger().Infof("starting GSD version=%s commit=%s built=%s", Version, Commit, BuildDate)
+
 	app := fx.New(
 		fx.Supply(cfg),
 		fx.Supply(logging.DefaultLogger().Desugar()),

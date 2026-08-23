@@ -21,3 +21,6 @@ ui/ios/
 # Claude worktrees
 internal/.claude/
 .claude/settings.local.json
+
+# Playwright MCP session artifacts
+.playwright-mcp/
