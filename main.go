@@ -70,7 +70,34 @@ var (
 	BuildDate = "dev"
 )
 
-func backupSQLiteDatabase(cfg *config.Config) error {
+// checkpointSQLiteWAL folds the write-ahead log back into the main database
+// file. In WAL mode a committed transaction can live entirely in the -wal
+// sidecar, so anything that copies donetick.db on its own — the backup below,
+// or an operator grabbing the file — silently misses recent writes unless this
+// runs first. TRUNCATE also resets -wal to zero length, so it can't grow
+// without bound across restarts.
+func checkpointSQLiteWAL(db *gorm.DB) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying SQL DB: %w", err)
+	}
+
+	// wal_checkpoint returns a single row: busy, total log frames, frames
+	// checkpointed. A non-zero busy means a reader or writer held the lock and
+	// the log was only partially folded in — worth surfacing rather than
+	// reporting a success that didn't fully happen.
+	var busy, logFrames, checkpointed int
+	if err := sqlDB.QueryRow("PRAGMA wal_checkpoint(TRUNCATE);").Scan(&busy, &logFrames, &checkpointed); err != nil {
+		return fmt.Errorf("wal_checkpoint failed: %w", err)
+	}
+	if busy != 0 {
+		return fmt.Errorf("wal_checkpoint could not complete: database busy, %d log frames left unmerged", logFrames)
+	}
+
+	return nil
+}
+
+func backupSQLiteDatabase(cfg *config.Config, db *gorm.DB) error {
 	// Determine the SQLite database path
 	dbPath := os.Getenv("DT_SQLITE_PATH")
 	if dbPath == "" {
@@ -81,6 +108,13 @@ func backupSQLiteDatabase(cfg *config.Config) error {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		// Database doesn't exist yet, nothing to backup
 		return nil
+	}
+
+	// Fold the WAL in before copying. Without this the copy captures only what
+	// had already been checkpointed, which after a busy period is a fraction of
+	// the real database — a backup that restores to a silently stale state.
+	if err := checkpointSQLiteWAL(db); err != nil {
+		return fmt.Errorf("failed to checkpoint WAL before backup: %w", err)
 	}
 
 	// Create backup filename with timestamp
@@ -116,6 +150,16 @@ func backupSQLiteDatabase(cfg *config.Config) error {
 }
 
 func main() {
+	// -ldflags stamps these vars on main (see scripts/build.sh). The config
+	// package keeps its own copy so the values can be served from
+	// /api/v1/resource, and nothing ever assigned it — so that endpoint
+	// reported "dev" even on a stamped build. Hand them over before
+	// LoadConfig copies them into config.Info, keeping main as the single
+	// place the build stamp lands.
+	config.Version = Version
+	config.Commit = Commit
+	config.BuildDate = BuildDate
+
 	// Load configuration first
 	cfg := config.LoadConfig()
 
@@ -343,7 +387,7 @@ func newServer(lc fx.Lifecycle, cfg *config.Config, db *gorm.DB, notifier *notif
 			if cfg.Database.Migration {
 				// Backup SQLite database before migrations
 				if cfg.Database.Type == "sqlite" {
-					if err := backupSQLiteDatabase(cfg); err != nil {
+					if err := backupSQLiteDatabase(cfg, db); err != nil {
 						logging.DefaultLogger().Warnf("failed to backup SQLite database: %v", err)
 						// Don't block startup on backup failure
 					}
@@ -401,6 +445,25 @@ func newServer(lc fx.Lifecycle, cfg *config.Config, db *gorm.DB, notifier *notif
 				// Force close
 				srv.Close()
 			}
+
+			// Fold the WAL back into the main database file on the way out,
+			// after the server has stopped accepting requests so nothing is
+			// still writing. Previously the -wal sidecar survived shutdown
+			// holding most of the recent writes, so a stopped container left
+			// donetick.db stale on disk and anyone copying that file alone got
+			// a database missing everything since the last automatic
+			// checkpoint.
+			if cfg.Database.Type == "sqlite" {
+				if err := checkpointSQLiteWAL(db); err != nil {
+					log.Printf("Failed to checkpoint SQLite WAL on shutdown: %v", err)
+				}
+				if sqlDB, err := db.DB(); err != nil {
+					log.Printf("Failed to get underlying SQL DB on shutdown: %v", err)
+				} else if err := sqlDB.Close(); err != nil {
+					log.Printf("Failed to close database on shutdown: %v", err)
+				}
+			}
+
 			return nil
 		},
 	})

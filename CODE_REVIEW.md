@@ -14,45 +14,7 @@ Line numbers are accurate as of 2026-08-23 and will drift — locate code by sym
 
 ## Still open
 
-### 1. SQLite backup silently omits most of the database
-**Severity: HIGH — data loss on restore**
-
-`backupSQLiteDatabase` ([main.go:73](main.go)) runs before migrations on every startup and
-copies **only** `donetick.db` via `os.Open`/`io.Copy`. It never runs
-`PRAGMA wal_checkpoint` and never copies the `-wal`/`-shm` sidecars. Since WAL mode was
-enabled ([internal/database/database.go:85](internal/database/database.go)), committed
-transactions live in the `-wal` file until a checkpoint — so the backup omits them.
-
-Confirmed on production 2026-08-23: after a clean `docker compose stop`, `donetick.db` was
-600 K dated Aug 8 while `donetick.db-wal` was 2.6 M dated that day. **Every `.bak-*` file on
-that host is a copy of a two-week-stale database.** The WAL does not checkpoint on shutdown
-either, which suggests the app never closes the DB handle on SIGTERM.
-
-**Fix:** `PRAGMA wal_checkpoint(TRUNCATE)` before copying, or use SQLite's online backup API;
-and add a SIGTERM handler that closes the DB. Until then, back up all three files together
-with the container stopped, and verify with `PRAGMA integrity_check` plus a row count against
-the live DB.
-
-### 2. `config.Info.Version` is never stamped — `/api/v1/resource` always reports `"dev"`
-**Severity: MEDIUM**
-
-There are two independent version variable sets. `main.Version`/`Commit`/`BuildDate`
-([main.go:68](main.go)) *are* targeted by the Dockerfile's `-ldflags` and are logged at
-startup. But `config.Version`/`Commit`/`BuildDate` ([config/config.go:18](config/config.go))
-are a separate set, copied into `config.Info` by `LoadConfig`, and the Dockerfile's ldflags
-never target `donetick.com/core/config.*`. That value is what
-`GET /api/v1/resource` serves as `api_version`/`api_commit`
-([internal/resource/handler.go:42](internal/resource/handler.go)).
-
-Verified live 2026-08-23: `{"api_version":"dev","api_commit":"dev"}` on a build stamped
-`80e9433`. Any client version-gate reading that endpoint sees `dev` forever.
-
-**Fix:** add `-X donetick.com/core/config.Version=${VERSION}` (and Commit/BuildDate) to the
-Dockerfile `go build` line, or have `LoadConfig` read the `main` values. Note
-`/api/v1/resource` is unauthenticated and has no rate limiter despite one being passed to
-`Routes` — worth deciding deliberately whether the version belongs there at all.
-
-### 3. `TimeoutMiddleware` cannot interrupt a slow handler
+### 1. `TimeoutMiddleware` cannot interrupt a slow handler
 **Severity: MEDIUM**
 
 [internal/utils/middleware.go:59](internal/utils/middleware.go) sets a context deadline, but
@@ -63,7 +25,7 @@ finished response as 504 rather than aborting anything in flight.
 **This is a design decision, not a typo.** Making it real requires handlers to observe
 `ctx.Done()`, which changes how handlers are written codebase-wide. Left deliberately.
 
-### 4. WebSocket `CheckOrigin` defaults to `*`
+### 2. WebSocket `CheckOrigin` defaults to `*`
 **Severity: LOW**
 
 The mechanism is now correct — [internal/realtime/handler.go:133](internal/realtime/handler.go)
@@ -77,7 +39,7 @@ cookie, so there is no forgeable cross-site credential to ride on. It becomes a 
 the moment cookie auth is introduced. **This is a config posture choice, not a code bug** —
 set a real origin list on any internet-facing instance.
 
-### 5. Frontend: 45 react-query v5 calls still use the v4 array form
+### 3. Frontend: 45 react-query v5 calls still use the v4 array form
 **Severity: MEDIUM**
 
 The project is on `@tanstack/react-query` v5, where `invalidateQueries(['key'])` leaves
@@ -95,7 +57,7 @@ turn this into a visible staleness bug, so **fix both together.**
 Same pattern in `CircleSettings.jsx`, `Settings.jsx`, and `ChildUserSettings.jsx` — correct
 key names, v4 syntax.
 
-### 6. Timer session list is correct by accident
+### 4. Timer session list is correct by accident
 **Severity: LOW**
 
 [ui/src/views/Timer/TimerDetails.jsx:989](ui/src/views/Timer/TimerDetails.jsx) calls
@@ -109,18 +71,18 @@ Two things to fix: sort a copy (`[...timerData.pauseLog].sort(...)`), and key
 ([TimerDetails.jsx:1011](ui/src/views/Timer/TimerDetails.jsx)). Mutating cached query data
 is also a react-query anti-pattern independent of this bug.
 
-### 7. Migrations still run through three uncoordinated systems
+### 5. Migrations still run through three uncoordinated systems
 **Severity: LOW-MEDIUM**
 
-[main.go:352](main.go) runs GORM `AutoMigrate`, the custom registry, then `MigrationScripts`
+[main.go:396](main.go) runs GORM `AutoMigrate`, the custom registry, then `MigrationScripts`
 in a fixed, undocumented order. `Down()` only fires as best-effort cleanup on failure — there
 is no operator-invoked rollback path ([migrations/base.go:72](migrations/base.go)).
 
-Materially improved since the original review: a backup now runs first (see item 1 for why it
-isn't sufficient), the duplicate `migrate.Exec` is gone, and `migrations/migrations_test.go`
-now provides smoke and idempotency coverage.
+Materially improved since the original review: the backup that runs first is now WAL-safe,
+the duplicate `migrate.Exec` is gone, and `migrations/migrations_test.go` now provides smoke
+and idempotency coverage.
 
-### 8. Smaller open items
+### 6. Smaller open items
 
 - **Assets route has no auth middleware.** The S3 signed-URL check is now a real HMAC
   ([internal/storage/signer_s3.go:82](internal/storage/signer_s3.go)), but
@@ -186,7 +148,10 @@ missing `aria-label`s · PWA manifest branding · hardcoded `app.donetick.com` r
 non-reproducible install, unpinned base image, root user · no CI (GitHub Actions now runs
 build/vet/lint/test on both backend and frontend) · test coverage 4 → 11 packages, covering
 every area the original review prioritised · version stamping plumbed through
-`scripts/build.sh` → compose → Dockerfile → startup log (but see open item 2).
+`scripts/build.sh` → compose → Dockerfile → startup log, with `config.Info` now fed from
+the same `main` vars so `/api/v1/resource` reports the real build instead of `"dev"` ·
+SQLite backup checkpointing the WAL before it copies, and a shutdown checkpoint so a
+stopped container no longer leaves the main database file stale.
 
 **HA integration** — the original root cause (completion-window inversion + missing
 `gin.Recovery()`) is fixed, as is the `/eapi/v1/things` trailing-slash mismatch. Since then:
@@ -200,10 +165,10 @@ read-only Projects eapi surface exists, chore creation accepts frequency and ass
 
 ```
 go vet ./...     clean
-go test ./...    11 packages ok, 0 failing
-                 config · external/payment · external/payment/repo · internal/auth
-                 internal/chore · internal/database · internal/mfa · internal/storage
-                 internal/user · internal/utils · migrations
+go test ./...    12 packages ok, 0 failing
+                 main · config · external/payment · external/payment/repo
+                 internal/auth · internal/chore · internal/database · internal/mfa
+                 internal/storage · internal/user · internal/utils · migrations
 ```
 
 *Re-verify against current `HEAD` before acting on anything here.*
