@@ -136,6 +136,7 @@ type StripeConfig struct {
 	Prices         []StripePrices `mapstructure:"prices"`
 	SuccessURL     string         `mapstructure:"success_url"`
 	CancelURL      string         `mapstructure:"cancel_url"`
+	WebhookSecret  string         `mapstructure:"webhook_secret"`
 }
 
 type StripePrices struct {

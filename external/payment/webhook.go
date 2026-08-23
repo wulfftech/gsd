@@ -2,9 +2,8 @@ package payment
 
 import (
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -19,17 +18,19 @@ import (
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v76"
+	"github.com/stripe/stripe-go/v76/webhook"
 )
 
 type Webhook struct {
-	stripeDB         pDB.StripeDB
-	revenueCatDB     pDB.RevenueCatDB
-	subscriptionDB   pDB.SubscriptionDB
-	whitelistIPs     map[string]bool
-	stripe           *stripeService.StripeService
-	prices           []config.StripePrices
-	revenueCatConfig config.RevenueCatConfig
-	userRepo         *uRepo.UserRepository
+	stripeDB            pDB.StripeDB
+	revenueCatDB        pDB.RevenueCatDB
+	subscriptionDB      pDB.SubscriptionDB
+	whitelistIPs        map[string]bool
+	stripe              *stripeService.StripeService
+	prices              []config.StripePrices
+	stripeWebhookSecret string
+	revenueCatConfig    config.RevenueCatConfig
+	userRepo            *uRepo.UserRepository
 }
 
 func NewWebhook(stripeDB pDB.StripeDB,
@@ -45,14 +46,15 @@ func NewWebhook(stripeDB pDB.StripeDB,
 	}
 
 	return &Webhook{
-		stripeDB:         stripeDB,
-		revenueCatDB:     revenueCatDB,
-		subscriptionDB:   subscriptionDB,
-		whitelistIPs:     whitelistIPs,
-		stripe:           stripeService,
-		userRepo:         uRepo,
-		prices:           config.StripeConfig.Prices,
-		revenueCatConfig: config.RevenueCatConfig,
+		stripeDB:            stripeDB,
+		revenueCatDB:        revenueCatDB,
+		subscriptionDB:      subscriptionDB,
+		whitelistIPs:        whitelistIPs,
+		stripe:              stripeService,
+		userRepo:            uRepo,
+		prices:              config.StripeConfig.Prices,
+		stripeWebhookSecret: config.StripeConfig.WebhookSecret,
+		revenueCatConfig:    config.RevenueCatConfig,
 	}
 }
 
@@ -73,23 +75,36 @@ func (h *Webhook) StripeWebhook(c *gin.Context) {
 		return
 	}
 
-	event := stripe.Event{}
-	if err := c.BindJSON(&event); err != nil {
-		logger.Errorw("payment.webhook.Webhook failed to bind json", "err", err)
+	// Fail closed: an unconfigured secret must never be treated as "skip
+	// verification". This endpoint is not wired up yet, but if it ever is,
+	// silently accepting unverified payment events is worse than refusing
+	// to serve at all.
+	if h.stripeWebhookSecret == "" {
+		logger.Errorw("payment.webhook.Webhook rejecting request: stripe webhook_secret is not configured")
+		c.JSON(http.StatusInternalServerError, "Webhook not configured")
 		return
 	}
-	// create a file and write the event to it:
-	timestamp := time.Now().UTC().Format("2006-01-02_15:04:05")
-	f, err := os.Create(fmt.Sprintf("w-%s-%s.json", timestamp, event.Type))
+
+	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		logger.Errorw("payment.webhook.Webhook failed to create file", "err", err)
+		logger.Errorw("payment.webhook.Webhook failed to read request body", "err", err)
+		c.JSON(http.StatusBadRequest, "Bad Request")
 		return
 	}
-	defer f.Close()
-	if err := json.NewEncoder(f).Encode(event); err != nil {
-		logger.Errorw("payment.webhook.Webhook failed to write to file", "err", err)
+
+	// ConstructEvent verifies the HMAC over the raw payload bytes, so this
+	// must run before any JSON binding touches the body. Note it also rejects
+	// an event whose api_version differs from the one this SDK was built
+	// against, which fails here even though the signature is fine — read the
+	// logged error rather than assuming a bad secret.
+	event, err := webhook.ConstructEvent(payload, c.GetHeader("Stripe-Signature"), h.stripeWebhookSecret)
+	if err != nil {
+		logger.Errorw("payment.webhook.Webhook rejected event", "err", err)
+		c.JSON(http.StatusBadRequest, "Invalid payload or signature")
 		return
 	}
+
+	logger.Debugw("payment.webhook.Webhook received event", "event_id", event.ID, "event_type", event.Type)
 
 	switch event.Type {
 	case "checkout.session.completed":
@@ -159,6 +174,7 @@ func (h *Webhook) StripeWebhook(c *gin.Context) {
 		}
 		mInvoice := &model.StripeInvoice{
 			InvoiceID:      inv.ID,
+			Amount:         int(inv.AmountPaid),
 			CustomerID:     inv.Customer.ID,
 			Status:         "paid",
 			PeriodStart:    time.Unix(int64(inv.PeriodStart), 0),

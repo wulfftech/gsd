@@ -1,11 +1,22 @@
 package payment
 
 import (
+	"bytes"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"donetick.com/core/config"
+	pModel "donetick.com/core/external/payment/model"
 	pDB "donetick.com/core/external/payment/repo"
+
+	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"github.com/stripe/stripe-go/v76"
+	"github.com/stripe/stripe-go/v76/webhook"
+	"gorm.io/gorm"
 )
 
 func newTestWebhook(t *testing.T, whitelistedIPs []string) *Webhook {
@@ -208,5 +219,218 @@ func TestRevenueCatWebhookEvent_JSONParsing_OmitsOptionalPointerFields(t *testin
 	}
 	if got.Event.Transactions != nil {
 		t.Errorf("Event.Transactions = %v, want nil when absent from payload", got.Event.Transactions)
+	}
+}
+
+// --- StripeWebhook signature verification ---
+//
+// These tests exercise the full HTTP handler (not just isIPWhitelisted), so
+// the request must originate from a whitelisted IP to reach the signature
+// check, and the fake event payload's api_version must match stripe.APIVersion
+// or webhook.ConstructEvent rejects it as a version mismatch before signature
+// verification even matters.
+
+const (
+	testWhitelistedIP   = "1.2.3.4"
+	testStripeSecret    = "whsec_test_secret"
+	testStripeSignature = "Stripe-Signature"
+)
+
+// newTestWebhookWithSecret builds a Webhook backed by an in-memory sqlite DB
+// (so handler paths that touch the DB - e.g. invoice.payment_succeeded - work
+// end to end) configured with the given whitelisted IPs and webhook secret.
+func newTestWebhookWithSecret(t *testing.T, whitelistedIPs []string, secret string) (*Webhook, *gorm.DB) {
+	t.Helper()
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open in-memory sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&pModel.StripeCustomer{},
+		&pModel.StripeSession{},
+		&pModel.StripeSubscription{},
+		&pModel.StripeInvoice{},
+		&pModel.Subscription{},
+	); err != nil {
+		t.Fatalf("failed to migrate schema: %v", err)
+	}
+
+	w := NewWebhook(
+		pDB.NewStripeDB(db),
+		pDB.RevenueCatDB{},
+		pDB.NewSubscriptionDB(db),
+		nil,
+		nil,
+		&config.Config{
+			StripeConfig: config.StripeConfig{
+				WhitelistedIPs: whitelistedIPs,
+				WebhookSecret:  secret,
+			},
+		},
+	)
+	return w, db
+}
+
+// stripeEventJSON builds a minimal Stripe event envelope carrying dataObject
+// as event.Data.Raw, with api_version set to stripe.APIVersion so
+// webhook.ConstructEvent doesn't reject it as an API version mismatch.
+func stripeEventJSON(t *testing.T, id, eventType string, dataObject interface{}) []byte {
+	t.Helper()
+
+	rawData, err := json.Marshal(dataObject)
+	if err != nil {
+		t.Fatalf("failed to marshal event data object: %v", err)
+	}
+
+	envelope := map[string]interface{}{
+		"id":          id,
+		"object":      "event",
+		"api_version": stripe.APIVersion,
+		"type":        eventType,
+		"data": map[string]interface{}{
+			"object": json.RawMessage(rawData),
+		},
+	}
+	b, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatalf("failed to marshal event envelope: %v", err)
+	}
+	return b
+}
+
+// signedStripeRequest builds a *gin.Context/httptest.ResponseRecorder pair
+// for a POST to the Stripe webhook endpoint, coming from remoteIP, with the
+// given body and Stripe-Signature header value (skipped entirely if empty).
+func signedStripeRequest(payload []byte, sigHeader, remoteIP string) (*gin.Context, *httptest.ResponseRecorder) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/stripe", bytes.NewReader(payload))
+	req.RemoteAddr = remoteIP + ":12345"
+	if sigHeader != "" {
+		req.Header.Set(testStripeSignature, sigHeader)
+	}
+	c.Request = req
+
+	return c, rec
+}
+
+func TestStripeWebhook_ValidSignature_Accepted(t *testing.T) {
+	w, _ := newTestWebhookWithSecret(t, []string{testWhitelistedIP}, testStripeSecret)
+
+	// An event type the handler doesn't otherwise act on, so this test is
+	// purely about the signature-verification gate, not downstream processing.
+	payload := stripeEventJSON(t, "evt_valid_1", "customer.created", map[string]interface{}{"id": "cus_test"})
+	signed := webhook.GenerateTestSignedPayload(&webhook.UnsignedPayload{
+		Payload: payload,
+		Secret:  testStripeSecret,
+	})
+
+	c, rec := signedStripeRequest(payload, signed.Header, testWhitelistedIP)
+	w.StripeWebhook(c)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("StripeWebhook() with a validly signed payload = %d, want %d; body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+func TestStripeWebhook_TamperedSignature_Rejected(t *testing.T) {
+	w, _ := newTestWebhookWithSecret(t, []string{testWhitelistedIP}, testStripeSecret)
+
+	original := stripeEventJSON(t, "evt_tampered_1", "customer.created", map[string]interface{}{"id": "cus_test"})
+	signed := webhook.GenerateTestSignedPayload(&webhook.UnsignedPayload{
+		Payload: original,
+		Secret:  testStripeSecret,
+	})
+
+	// Send a different body than the one that was signed - the signature no
+	// longer matches the payload it's paired with.
+	tampered := stripeEventJSON(t, "evt_tampered_1_evil", "customer.created", map[string]interface{}{"id": "cus_attacker"})
+
+	c, rec := signedStripeRequest(tampered, signed.Header, testWhitelistedIP)
+	w.StripeWebhook(c)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("StripeWebhook() with a tampered payload = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+func TestStripeWebhook_MissingSignatureHeader_Rejected(t *testing.T) {
+	w, _ := newTestWebhookWithSecret(t, []string{testWhitelistedIP}, testStripeSecret)
+
+	payload := stripeEventJSON(t, "evt_no_header_1", "customer.created", map[string]interface{}{"id": "cus_test"})
+
+	c, rec := signedStripeRequest(payload, "", testWhitelistedIP)
+	w.StripeWebhook(c)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("StripeWebhook() with no Stripe-Signature header = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+// TestStripeWebhook_EmptySecret_FailsClosed documents the deliberate choice
+// to fail closed when webhook_secret is unconfigured: the handler rejects
+// the request before even looking at the signature, rather than silently
+// skipping verification. This matters because the endpoint isn't wired up
+// today (see Webhooks() in webhook.go) - whoever registers the routes later
+// must configure the secret, or the endpoint refuses to serve at all instead
+// of quietly accepting unverified payment events.
+func TestStripeWebhook_EmptySecret_FailsClosed(t *testing.T) {
+	w, _ := newTestWebhookWithSecret(t, []string{testWhitelistedIP}, "")
+
+	// Deliberately do not sign this payload at all - an unconfigured secret
+	// must reject the request regardless of what (if anything) is in the
+	// Stripe-Signature header.
+	payload := stripeEventJSON(t, "evt_no_secret_1", "customer.created", map[string]interface{}{"id": "cus_test"})
+
+	c, rec := signedStripeRequest(payload, "", testWhitelistedIP)
+	w.StripeWebhook(c)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("StripeWebhook() with an unconfigured webhook secret = %d, want %d (fail closed)", rec.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestStripeWebhook_InvoicePaymentSucceeded_PopulatesAmount(t *testing.T) {
+	w, db := newTestWebhookWithSecret(t, []string{testWhitelistedIP}, testStripeSecret)
+
+	const (
+		invoiceID      = "in_test_123"
+		customerID     = "cus_test_123"
+		subscriptionID = "sub_test_123"
+		amountPaid     = 2599 // $25.99, in cents - Stripe amounts are already in the smallest currency unit
+	)
+	periodStart := time.Now().UTC().Add(-30 * 24 * time.Hour).Unix()
+	periodEnd := time.Now().UTC().Unix()
+
+	invoiceData := map[string]interface{}{
+		"id":           invoiceID,
+		"customer":     map[string]interface{}{"id": customerID},
+		"subscription": map[string]interface{}{"id": subscriptionID},
+		"amount_paid":  amountPaid,
+		"period_start": periodStart,
+		"period_end":   periodEnd,
+	}
+	payload := stripeEventJSON(t, "evt_invoice_1", "invoice.payment_succeeded", invoiceData)
+	signed := webhook.GenerateTestSignedPayload(&webhook.UnsignedPayload{
+		Payload: payload,
+		Secret:  testStripeSecret,
+	})
+
+	c, rec := signedStripeRequest(payload, signed.Header, testWhitelistedIP)
+	w.StripeWebhook(c)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("StripeWebhook() for invoice.payment_succeeded = %d, want %d; body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var saved pModel.StripeInvoice
+	if err := db.Where("invoice_id = ?", invoiceID).First(&saved).Error; err != nil {
+		t.Fatalf("failed to load saved invoice: %v", err)
+	}
+	if saved.Amount != amountPaid {
+		t.Errorf("saved invoice Amount = %d, want %d", saved.Amount, amountPaid)
 	}
 }
