@@ -40,7 +40,7 @@ import {
   UpdateMemberRole,
   UpdatePassword,
 } from '../../utils/Fetcher'
-import { isPlusAccount } from '../../utils/Helpers'
+import { copyText, isPlusAccount } from '../../utils/Helpers'
 import LoadingComponent from '../components/Loading'
 import ConfirmationModal from '../Modals/Inputs/ConfirmationModal'
 import NativeCancelSubscriptionModal from '../Modals/Inputs/NativeCancelSubscriptionModal'
@@ -261,8 +261,17 @@ const Settings = () => {
           />
           <Button
             variant='soft'
-            onClick={() => {
-              navigator.clipboard.writeText(userCircles[0]?.invite_code)
+            onClick={async () => {
+              const isCopied = await copyText(userCircles[0]?.invite_code)
+              if (!isCopied) {
+                showNotification({
+                  type: 'error',
+                  title: 'Error',
+                  message: 'Could not copy the code to the clipboard',
+                })
+                return
+              }
+
               showNotification({
                 type: 'success',
                 message: 'Code copied to clipboard',
@@ -274,13 +283,22 @@ const Settings = () => {
           <Button
             variant='soft'
             sx={{ ml: 1 }}
-            onClick={() => {
-              navigator.clipboard.writeText(
+            onClick={async () => {
+              const isCopied = await copyText(
                 window.location.protocol +
                   '//' +
                   window.location.host +
                   `/circle/join?code=${userCircles[0]?.invite_code}`,
               )
+              if (!isCopied) {
+                showNotification({
+                  type: 'error',
+                  title: 'Error',
+                  message: 'Could not copy the link to the clipboard',
+                })
+                return
+              }
+
               showNotification({
                 type: 'success',
                 message: 'Link copied to clipboard',

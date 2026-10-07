@@ -20,7 +20,7 @@ import {
   DeleteLongLiveToken,
   GetLongLiveTokens,
 } from '../../utils/Fetcher'
-import { isPlusAccount } from '../../utils/Helpers'
+import { copyText, isPlusAccount } from '../../utils/Helpers'
 import ConfirmationModal from '../Modals/Inputs/ConfirmationModal'
 import TextModal from '../Modals/Inputs/TextModal'
 import SettingsLayout from './SettingsLayout'
@@ -33,6 +33,10 @@ const APITokenSettings = () => {
   const [isGetTokenNameModalOpen, setIsGetTokenNameModalOpen] = useState(false)
   const [showTokenId, setShowTokenId] = useState(null)
   const [confirmModalConfig, setConfirmModalConfig] = useState({})
+  // The server only ever returns a token's full value once, at creation, and
+  // masks it on every later list. So only the tokens generated during this
+  // mount can be shown or copied.
+  const [revealableTokenIds, setRevealableTokenIds] = useState([])
 
   const showConfirmation = (
     message,
@@ -67,16 +71,40 @@ const APITokenSettings = () => {
 
   const handleSaveToken = name => {
     CreateLongLiveToken(name).then(resp => {
-      if (resp.ok) {
-        resp.json().then(data => {
-          // add the token to the list:
-          console.log(data)
-          const newTokens = [...tokens]
-          newTokens.push(data.res)
-          setTokens(newTokens)
+      if (!resp.ok) {
+        showNotification({
+          type: 'error',
+          title: 'Error',
+          message: 'Could not generate the API token',
         })
+        return
       }
+
+      resp.json().then(data => {
+        // add the token to the list:
+        const newToken = data.res
+        setTokens(currentTokens => [...currentTokens, newToken])
+        setRevealableTokenIds(currentIds => [...currentIds, newToken.id])
+      })
     })
+  }
+
+  const handleCopyToken = async token => {
+    const isCopied = await copyText(token.token)
+    if (!isCopied) {
+      showNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Could not copy the token to the clipboard',
+      })
+      return
+    }
+
+    showNotification({
+      type: 'success',
+      message: 'Token copied to clipboard',
+    })
+    setShowTokenId(null)
   }
 
   return (
@@ -101,92 +129,103 @@ const APITokenSettings = () => {
           </>
         )}
 
-        {tokens.map(token => (
-          <Card key={token.token} className='p-4'>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography level='body-md'>{token.name}</Typography>
-                <Typography level='body-xs'>
-                  {moment(token.createdAt).fromNow()}(
-                  {fmt.dateTime(token.createdAt)})
-                </Typography>
-              </Box>
-              <Box>
-                <Button
-                  variant='outlined'
-                  color='primary'
-                  sx={{ mr: 1 }}
-                  onClick={() => {
-                    if (showTokenId === token.id) {
-                      setShowTokenId(null)
-                      return
-                    }
+        {tokens.map(token => {
+          const isRevealable = revealableTokenIds.includes(token.id)
 
-                    setShowTokenId(token.id)
-                  }}
-                >
-                  {showTokenId === token?.id ? 'Hide' : 'Show'} Token
-                </Button>
-
-                <Button
-                  variant='outlined'
-                  color='danger'
-                  onClick={() => {
-                    showConfirmation(
-                      `Are you sure you want to remove ${token.name}?`,
-                      'Remove Token',
-                      () => {
-                        DeleteLongLiveToken(token.id).then(resp => {
-                          if (resp.ok) {
-                            showNotification({
-                              type: 'success',
-                              title: 'Removed',
-                              message: 'API token has been removed',
-                            })
-                            const newTokens = tokens.filter(
-                              t => t.id !== token.id,
-                            )
-                            setTokens(newTokens)
-                          }
-                        })
-                      },
-                      'Remove',
-                      'Cancel',
-                      'danger',
-                    )
-                  }}
-                >
-                  Remove
-                </Button>
-              </Box>
-            </Box>
-            {showTokenId === token?.id && (
-              <Box>
-                <Input
-                  value={token.token}
-                  sx={{ width: '100%', mt: 2 }}
-                  readOnly
-                  endDecorator={
-                    <IconButton
+          return (
+            <Card key={token.id} className='p-4'>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography level='body-md'>{token.name}</Typography>
+                  <Typography level='body-xs'>
+                    {moment(token.createdAt).fromNow()}(
+                    {fmt.dateTime(token.createdAt)})
+                  </Typography>
+                </Box>
+                <Box>
+                  {isRevealable && (
+                    <Button
                       variant='outlined'
                       color='primary'
+                      sx={{ mr: 1 }}
                       onClick={() => {
-                        navigator.clipboard.writeText(token.token)
-                        showNotification({
-                          type: 'success',
-                          message: 'Token copied to clipboard',
-                        })
-                        setShowTokenId(null)
+                        if (showTokenId === token.id) {
+                          setShowTokenId(null)
+                          return
+                        }
+
+                        setShowTokenId(token.id)
                       }}
                     >
-                      <CopyAll />
-                    </IconButton>
-                  }
-                />
+                      {showTokenId === token?.id ? 'Hide' : 'Show'} Token
+                    </Button>
+                  )}
+
+                  <Button
+                    variant='outlined'
+                    color='danger'
+                    onClick={() => {
+                      showConfirmation(
+                        `Are you sure you want to remove ${token.name}?`,
+                        'Remove Token',
+                        () => {
+                          DeleteLongLiveToken(token.id).then(resp => {
+                            if (resp.ok) {
+                              showNotification({
+                                type: 'success',
+                                title: 'Removed',
+                                message: 'API token has been removed',
+                              })
+                              const newTokens = tokens.filter(
+                                t => t.id !== token.id,
+                              )
+                              setTokens(newTokens)
+                            }
+                          })
+                        },
+                        'Remove',
+                        'Cancel',
+                        'danger',
+                      )
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </Box>
               </Box>
-            )}
-          </Card>
-        ))}
+              {isRevealable ? (
+                showTokenId === token?.id && (
+                  <Box>
+                    <Input
+                      value={token.token}
+                      sx={{ width: '100%', mt: 2 }}
+                      readOnly
+                      endDecorator={
+                        <IconButton
+                          variant='outlined'
+                          color='primary'
+                          onClick={() => handleCopyToken(token)}
+                        >
+                          <CopyAll />
+                        </IconButton>
+                      }
+                    />
+                  </Box>
+                )
+              ) : (
+                <Box sx={{ mt: 2 }}>
+                  <Typography level='body-sm' sx={{ fontFamily: 'monospace' }}>
+                    {token.token}
+                  </Typography>
+                  <Typography level='body-xs'>
+                    The full token is only shown once, when it is generated.
+                    Generate a new token if you need a value you can copy.
+                  </Typography>
+                </Box>
+              )}
+            </Card>
+          )
+        })}
 
         <Button
           variant='soft'

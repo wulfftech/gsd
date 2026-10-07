@@ -2,6 +2,7 @@ import { CopyAll } from '@mui/icons-material'
 import { Box, Button, Checkbox, Input, ListItem, Typography } from '@mui/joy'
 import { useState } from 'react'
 import { useResponsiveModal } from '../../../hooks/useResponsiveModal'
+import { copyText } from '../../../utils/Helpers'
 
 function WriteNFCModal({ config }) {
   const { ResponsiveModal } = useResponsiveModal()
@@ -79,9 +80,13 @@ function WriteNFCModal({ config }) {
             endDecorator={
               <CopyAll
                 sx={{ cursor: 'pointer' }}
-                onClick={() => {
-                  navigator.clipboard.writeText(getURL())
-                  alert('URL copied to clipboard!')
+                onClick={async () => {
+                  const isCopied = await copyText(getURL())
+                  alert(
+                    isCopied
+                      ? 'URL copied to clipboard!'
+                      : 'Could not copy the URL to the clipboard.',
+                  )
                 }}
               />
             }
