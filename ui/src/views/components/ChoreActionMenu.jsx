@@ -23,6 +23,7 @@ import {
 import { Divider, IconButton, Menu, MenuItem, Tooltip } from '@mui/joy'
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import { isOfficialDonetickInstanceSync } from '../../utils/FeatureToggle'
 
 const ChoreActionMenu = ({
@@ -45,6 +46,9 @@ const ChoreActionMenu = ({
   const [isOfficialInstance, setIsOfficialInstance] = useState(false)
   const menuRef = React.useRef(null)
   const navigate = useNavigate()
+  // Kids (circle role 'member') can complete and view, but not change tasks.
+  const { isMember } = useCircleRole()
+  const canChange = !isMember
 
   // Check if this is the official donetick.com instance
   useEffect(() => {
@@ -247,25 +251,29 @@ const ChoreActionMenu = ({
           <Update />
           Complete in past
         </MenuItem>
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            handleSkip()
-          }}
-        >
-          <SwitchAccessShortcut />
-          Skip to next due date
-        </MenuItem>
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            onChangeAssignee?.()
-            handleMenuClose()
-          }}
-        >
-          <RecordVoiceOver />
-          Delegate to someone else
-        </MenuItem>
+        {canChange && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation()
+              handleSkip()
+            }}
+          >
+            <SwitchAccessShortcut />
+            Skip to next due date
+          </MenuItem>
+        )}
+        {canChange && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation()
+              onChangeAssignee?.()
+              handleMenuClose()
+            }}
+          >
+            <RecordVoiceOver />
+            Delegate to someone else
+          </MenuItem>
+        )}
         {isOfficialInstance && (
           <MenuItem
             onClick={e => {
@@ -288,99 +296,103 @@ const ChoreActionMenu = ({
           <ManageSearch />
           History
         </MenuItem>
-        <Divider />
-        <MenuItem
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: 'center',
-            gap: 1,
-            cursor: 'default',
-            '&:hover': {
-              backgroundColor: 'transparent',
-            },
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          <Tooltip title='Today' placement='top'>
-            <IconButton
-              size='sm'
+        {canChange && (
+          <>
+            <Divider />
+            <MenuItem
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-around',
+                alignItems: 'center',
+                gap: 1,
+                cursor: 'default',
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                },
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <Tooltip title='Today' placement='top'>
+                <IconButton
+                  size='sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleQuickSchedule('today')
+                  }}
+                >
+                  <Today />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title='Tomorrow' placement='top'>
+                <IconButton
+                  size='sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleQuickSchedule('tomorrow')
+                  }}
+                >
+                  <WbSunny />
+                </IconButton>
+              </Tooltip>
+              {/* <Tooltip title='Tomorrow afternoon' placement='top'>
+              <IconButton
+                size='sm'
+                onClick={e => {
+                  e.stopPropagation()
+                  handleQuickSchedule('tomorrow-afternoon')
+                }}
+              >
+                <WbTwilight />
+              </IconButton>
+            </Tooltip> */}
+              <Tooltip title='Weekend' placement='top'>
+                <IconButton
+                  size='sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleQuickSchedule('weekend')
+                  }}
+                >
+                  <Weekend />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title='Next week' placement='top'>
+                <IconButton
+                  size='sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleQuickSchedule('next-week')
+                  }}
+                >
+                  <NextWeek />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title='Remove due date' placement='top'>
+                <IconButton
+                  size='sm'
+                  color='neutral'
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleQuickSchedule('remove')
+                  }}
+                >
+                  <Cancel />
+                </IconButton>
+              </Tooltip>
+            </MenuItem>
+            <Divider />
+            <MenuItem
               onClick={e => {
                 e.stopPropagation()
-                handleQuickSchedule('today')
+                onChangeDueDate?.()
+                handleMenuClose()
               }}
             >
-              <Today />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title='Tomorrow' placement='top'>
-            <IconButton
-              size='sm'
-              onClick={e => {
-                e.stopPropagation()
-                handleQuickSchedule('tomorrow')
-              }}
-            >
-              <WbSunny />
-            </IconButton>
-          </Tooltip>
-          {/* <Tooltip title='Tomorrow afternoon' placement='top'>
-            <IconButton
-              size='sm'
-              onClick={e => {
-                e.stopPropagation()
-                handleQuickSchedule('tomorrow-afternoon')
-              }}
-            >
-              <WbTwilight />
-            </IconButton>
-          </Tooltip> */}
-          <Tooltip title='Weekend' placement='top'>
-            <IconButton
-              size='sm'
-              onClick={e => {
-                e.stopPropagation()
-                handleQuickSchedule('weekend')
-              }}
-            >
-              <Weekend />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title='Next week' placement='top'>
-            <IconButton
-              size='sm'
-              onClick={e => {
-                e.stopPropagation()
-                handleQuickSchedule('next-week')
-              }}
-            >
-              <NextWeek />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title='Remove due date' placement='top'>
-            <IconButton
-              size='sm'
-              color='neutral'
-              onClick={e => {
-                e.stopPropagation()
-                handleQuickSchedule('remove')
-              }}
-            >
-              <Cancel />
-            </IconButton>
-          </Tooltip>
-        </MenuItem>
-        <Divider />
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            onChangeDueDate?.()
-            handleMenuClose()
-          }}
-        >
-          <MoreTime />
-          Change due date
-        </MenuItem>
+              <MoreTime />
+              Change due date
+            </MenuItem>
+          </>
+        )}
         <MenuItem
           onClick={e => {
             e.stopPropagation()
@@ -391,24 +403,28 @@ const ChoreActionMenu = ({
           <Nfc />
           Write to NFC
         </MenuItem>
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            handleEdit()
-          }}
-        >
-          <Edit />
-          Edit
-        </MenuItem>
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            handleClone()
-          }}
-        >
-          <CopyAll />
-          Clone
-        </MenuItem>
+        {canChange && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation()
+              handleEdit()
+            }}
+          >
+            <Edit />
+            Edit
+          </MenuItem>
+        )}
+        {canChange && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation()
+              handleClone()
+            }}
+          >
+            <CopyAll />
+            Clone
+          </MenuItem>
+        )}
         <MenuItem
           onClick={e => {
             e.stopPropagation()
@@ -418,27 +434,31 @@ const ChoreActionMenu = ({
           <ViewCarousel />
           View
         </MenuItem>
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            handleArchive()
-          }}
-          color='neutral'
-        >
-          {chore.isActive ? <Archive /> : <Unarchive />}
-          {chore.isActive ? 'Archive' : 'Unarchive'}
-        </MenuItem>
-        <Divider />
-        <MenuItem
-          onClick={e => {
-            e.stopPropagation()
-            handleDelete()
-          }}
-          color='danger'
-        >
-          <Delete />
-          Delete
-        </MenuItem>
+        {canChange && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation()
+              handleArchive()
+            }}
+            color='neutral'
+          >
+            {chore.isActive ? <Archive /> : <Unarchive />}
+            {chore.isActive ? 'Archive' : 'Unarchive'}
+          </MenuItem>
+        )}
+        {canChange && <Divider />}
+        {canChange && (
+          <MenuItem
+            onClick={e => {
+              e.stopPropagation()
+              handleDelete()
+            }}
+            color='danger'
+          >
+            <Delete />
+            Delete
+          </MenuItem>
+        )}
       </Menu>
     </>
   )

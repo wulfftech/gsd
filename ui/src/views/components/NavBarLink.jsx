@@ -1,4 +1,5 @@
 import {
+  Chip,
   ListItem,
   ListItemButton,
   ListItemContent,
@@ -7,7 +8,7 @@ import {
 import { Link } from 'react-router-dom'
 
 const NavBarLink = ({ link }) => {
-  const { to, icon, label } = link
+  const { to, icon, label, badge } = link
   return (
     <ListItem>
       <ListItemButton
@@ -23,6 +24,11 @@ const NavBarLink = ({ link }) => {
       >
         <ListItemDecorator>{icon}</ListItemDecorator>
         <ListItemContent>{label}</ListItemContent>
+        {badge > 0 && (
+          <Chip size='sm' color='warning' variant='solid'>
+            {badge}
+          </Chip>
+        )}
       </ListItemButton>
     </ListItem>
   )

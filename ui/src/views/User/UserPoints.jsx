@@ -11,6 +11,7 @@ import {
   AccountBalanceWallet,
   Analytics,
   AssignmentTurnedIn,
+  Payments,
   CreditCard,
   EmojiEvents,
   MilitaryTech,
@@ -43,11 +44,15 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import LoadingComponent from '../components/Loading.jsx'
 
+import useConfirmationModal from '../../hooks/useConfirmationModal'
 import { useChoresHistory } from '../../queries/ChoreQueries.jsx'
+import { usePayoutPoints } from '../../queries/HouseholdQueries.jsx'
+import { useNotification } from '../../service/NotificationProvider'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries.jsx'
 import { DepositPoints } from '../../utils/Fetcher.jsx'
 import { resolvePhotoURL } from '../../utils/Helpers.jsx'
 import DepositPointsModal from '../Modals/DepositPointsModal'
+import ConfirmationModal from '../Modals/Inputs/ConfirmationModal'
 import RewardsPickerModal from '../Modals/RewardsPickerModal'
 const UserPoints = () => {
   const [tabValue, setTabValue] = useState('now')
@@ -68,6 +73,9 @@ const UserPoints = () => {
   } = useChoresHistory(7)
 
   const { data: userProfile } = useUserProfile()
+  const payoutPoints = usePayoutPoints()
+  const { confirmModalConfig, showConfirmation } = useConfirmationModal()
+  const { showError, showSuccess } = useNotification()
   const [searchParams] = useSearchParams()
   const queryUserId = searchParams.get('userId')
   const [selectedUser, setSelectedUser] = useState(
@@ -787,6 +795,61 @@ const UserPoints = () => {
                   Deposit Points
                 </Button>
               )}
+              {/* Pay out — admin only: redeems the selected member's whole
+                  balance and resets it to 0 */}
+              {circleUsers.find(user => user.userId === userProfile.id)
+                ?.role === 'admin' &&
+                (() => {
+                  const target = circleUsers.find(
+                    u => u.userId === selectedUser,
+                  )
+                  if (!target) return null
+                  const balance = target.points || 0
+                  const name = target.displayName || target.username
+                  return (
+                    <Button
+                      variant='soft'
+                      color='warning'
+                      size='md'
+                      startDecorator={<Payments />}
+                      disabled={balance <= 0 || payoutPoints.isPending}
+                      onClick={() =>
+                        showConfirmation(
+                          `Pay out ${balance} points to ${name}? This resets their balance to 0.`,
+                          'Pay out points',
+                          () =>
+                            payoutPoints.mutate(
+                              {
+                                userId: target.userId,
+                                circleId: userProfile.circleID,
+                              },
+                              {
+                                onSuccess: res => {
+                                  showSuccess({
+                                    title: 'Paid out',
+                                    message: `Paid out ${res?.paid ?? balance} points to ${name}.`,
+                                  })
+                                  handleCircleMembersRefetch()
+                                },
+                                onError: error => {
+                                  showError({
+                                    title: 'Pay-out failed',
+                                    message: error.message,
+                                  })
+                                },
+                              },
+                            ),
+                          'Pay out',
+                          'Cancel',
+                          'warning',
+                        )
+                      }
+                      sx={{ mt: 'auto' }}
+                    >
+                      Pay out
+                    </Button>
+                  )
+                })()}
             </Box>
           </Stack>
         </Stack>
@@ -970,6 +1033,9 @@ const UserPoints = () => {
           }
         })()}
       />
+      {confirmModalConfig?.isOpen && (
+        <ConfirmationModal config={confirmModalConfig} />
+      )}
       <DepositPointsModal
         config={(() => {
           const user = circleUsers.find(u => u.userId === selectedUser)

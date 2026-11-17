@@ -44,6 +44,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { useImpersonateUser } from '../../contexts/ImpersonateUserContext.jsx'
 import { useLocalization } from '../../contexts/LocalizationContext'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import { useChoreDetails } from '../../queries/ChoreQueries.jsx'
 import {
   useChoreTimer,
@@ -66,6 +67,7 @@ import {
   UndoChoreAction,
   UpdateChorePriority,
 } from '../../utils/Fetcher'
+import { ApiError, readApiError } from '../../utils/ApiErrors'
 import Priorities from '../../utils/Priorities'
 import { getSafeBottomPadding } from '../../utils/SafeAreaUtils.js'
 import ConfirmationModal from '../Modals/Inputs/ConfirmationModal'
@@ -82,6 +84,9 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
   const { fmt } = useLocalization()
   const [chore, setChore] = useState({})
   const navigate = useNavigate()
+  // Kids (circle role 'member') can complete and undo, but not edit, skip or
+  // unarchive.
+  const { isMember } = useCircleRole()
   const [performers, setPerformers] = useState([])
   const [infoCards, setInfoCards] = useState([])
   const { choreId: choreIdParam } = useParams()
@@ -210,13 +215,17 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
         completedDate,
         null,
       )
-        .then(resp => {
+        .then(async resp => {
           if (resp.ok) {
             return resp.json().then(data => {
               setNote(null)
               setChore(data.res)
             })
           }
+          throw new ApiError(
+            await readApiError(resp, 'The task could not be marked as done.'),
+            resp.status,
+          )
         })
         .then(() => {
           // Invalidate chores cache to refetch data
@@ -262,6 +271,18 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
                 })
               }
             },
+          })
+        })
+        .catch(error => {
+          if (!(error instanceof ApiError)) {
+            console.error('Error completing chore:', error)
+          }
+          showError({
+            title: 'Could not complete task',
+            message:
+              error instanceof ApiError
+                ? error.message
+                : 'The task could not be marked as done.',
           })
         })
     },
@@ -448,24 +469,36 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
   }
 
   const handleApproveChore = () => {
-    ApproveChore(choreId).then(response => {
+    ApproveChore(choreId).then(async response => {
       if (response.ok) {
         response.json().then(data => {
           setChore(data.res)
           // Invalidate chores cache to refetch data
           queryClient.invalidateQueries(['chores'])
+          queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] })
+        })
+      } else {
+        showError({
+          title: 'Failed to approve',
+          message: await readApiError(response, 'Unable to approve chore'),
         })
       }
     })
   }
 
   const handleRejectChore = () => {
-    RejectChore(choreId).then(response => {
+    RejectChore(choreId).then(async response => {
       if (response.ok) {
         response.json().then(data => {
           setChore(data.res)
           // Invalidate chores cache to refetch data
           queryClient.invalidateQueries(['chores'])
+          queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] })
+        })
+      } else {
+        showError({
+          title: 'Failed to reject',
+          message: await readApiError(response, 'Unable to reject chore'),
         })
       }
     })
@@ -490,6 +523,9 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
     const currentUser = circleMembersData.res.find(
       member => member.userId === (impersonatedUser?.userId || userProfile?.id),
     )
+
+    // Kids (role 'member') can never approve or reject; the server refuses.
+    if (currentUser?.role === 'member') return false
 
     // User can approve/reject if they are:
     // 1. Admin or manager of the circle
@@ -775,25 +811,27 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
             <History />
             {t('choreView.history')}
           </Button>
-          <Button
-            size='sm'
-            color='neutral'
-            variant='plain'
-            fullWidth
-            sx={{
-              // top right of the card:
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              p: 1,
-            }}
-            onClick={() => {
-              navigateAndClose(`/chores/${choreId}/edit`)
-            }}
-          >
-            <Edit />
-            Edit
-          </Button>
+          {!isMember && (
+            <Button
+              size='sm'
+              color='neutral'
+              variant='plain'
+              fullWidth
+              sx={{
+                // top right of the card:
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 1,
+              }}
+              onClick={() => {
+                navigateAndClose(`/chores/${choreId}/edit`)
+              }}
+            >
+              <Edit />
+              Edit
+            </Button>
+          )}
         </Box>
 
         {chore.description && (
@@ -1029,6 +1067,7 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
             <Button
               fullWidth
               size='lg'
+              disabled={isMember}
               onClick={handleUnarchiveChore}
               color='primary'
               startDecorator={<Unarchive />}
@@ -1116,34 +1155,36 @@ const ChoreView = ({ choreId: choreIdProp, isModal = false, onClose } = {}) => {
                     <Box>{t('choreView.markAsDone')}</Box>
                   </Button>
 
-                  <Button
-                    fullWidth
-                    size='lg'
-                    onClick={() => {
-                      setConfirmModelConfig({
-                        isOpen: true,
-                        title: t('choreView.skipTask'),
-                        message: t('choreView.skipTaskConfirmation'),
-                        confirmText: t('choreView.skip'),
-                        cancelText: t('choreView.cancel'),
-                        onClose: confirmed => {
-                          if (confirmed) {
-                            handleSkippingTask()
-                          }
-                          setConfirmModelConfig({})
-                        },
-                      })
-                    }}
-                    disabled={
-                      notInCompletionWindow(chore) || chore.isActive === false
-                    }
-                    startDecorator={<SwitchAccessShortcut />}
-                    sx={{
-                      flex: 1,
-                    }}
-                  >
-                    <Box>{t('choreView.skip')}</Box>
-                  </Button>
+                  {!isMember && (
+                    <Button
+                      fullWidth
+                      size='lg'
+                      onClick={() => {
+                        setConfirmModelConfig({
+                          isOpen: true,
+                          title: t('choreView.skipTask'),
+                          message: t('choreView.skipTaskConfirmation'),
+                          confirmText: t('choreView.skip'),
+                          cancelText: t('choreView.cancel'),
+                          onClose: confirmed => {
+                            if (confirmed) {
+                              handleSkippingTask()
+                            }
+                            setConfirmModelConfig({})
+                          },
+                        })
+                      }}
+                      disabled={
+                        notInCompletionWindow(chore) || chore.isActive === false
+                      }
+                      startDecorator={<SwitchAccessShortcut />}
+                      sx={{
+                        flex: 1,
+                      }}
+                    >
+                      <Box>{t('choreView.skip')}</Box>
+                    </Button>
+                  )}
                 </>
               )}
             </Box>

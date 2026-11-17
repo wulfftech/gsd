@@ -23,6 +23,7 @@ import {
 import Fuse from 'fuse.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import { useUnArchiveChore } from '../../queries/ChoreQueries'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
 import { useNotification } from '../../service/NotificationProvider'
@@ -39,6 +40,9 @@ const ArchivedTasks = () => {
     useUserProfile()
   const { showSuccess, showError } = useNotification()
   const unArchiveChore = useUnArchiveChore()
+  // Kids (circle role 'member') can't restore or delete archived tasks, so
+  // multi-select (the only way to do either here) is off for them.
+  const { isMember } = useCircleRole()
   const [archivedChores, setArchivedChores] = useState([])
   const [filteredChores, setFilteredChores] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -165,13 +169,14 @@ const ArchivedTasks = () => {
 
   // Multi-select helper functions
   const toggleMultiSelectMode = useCallback(() => {
+    if (isMember) return
     const newMode = !isMultiSelectMode
     setIsMultiSelectMode(newMode)
 
     if (!newMode) {
       setSelectedChores(new Set())
     }
-  }, [isMultiSelectMode])
+  }, [isMember, isMultiSelectMode])
 
   const toggleChoreSelection = choreId => {
     const newSelection = new Set(selectedChores)
@@ -595,36 +600,38 @@ const ArchivedTasks = () => {
         </IconButton>
 
         {/* Multi-select Toggle Button */}
-        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-          <IconButton
-            variant={isMultiSelectMode ? 'solid' : 'outlined'}
-            color={isMultiSelectMode ? 'primary' : 'neutral'}
-            size='sm'
-            sx={{
-              height: 32,
-              width: 32,
-              borderRadius: '50%',
-            }}
-            onClick={toggleMultiSelectMode}
-            title={
-              isMultiSelectMode
-                ? 'Exit Multi-select Mode (Ctrl+S)'
-                : 'Enable Multi-select Mode (Ctrl+S)'
-            }
-          >
-            {isMultiSelectMode ? <CheckBox /> : <CheckBoxOutlineBlank />}
-          </IconButton>
-          <KeyboardShortcutHint
-            shortcut='S'
-            show={showKeyboardShortcuts}
-            sx={{
-              position: 'absolute',
-              top: -8,
-              right: -8,
-              zIndex: 1000,
-            }}
-          />
-        </Box>
+        {!isMember && (
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <IconButton
+              variant={isMultiSelectMode ? 'solid' : 'outlined'}
+              color={isMultiSelectMode ? 'primary' : 'neutral'}
+              size='sm'
+              sx={{
+                height: 32,
+                width: 32,
+                borderRadius: '50%',
+              }}
+              onClick={toggleMultiSelectMode}
+              title={
+                isMultiSelectMode
+                  ? 'Exit Multi-select Mode (Ctrl+S)'
+                  : 'Enable Multi-select Mode (Ctrl+S)'
+              }
+            >
+              {isMultiSelectMode ? <CheckBox /> : <CheckBoxOutlineBlank />}
+            </IconButton>
+            <KeyboardShortcutHint
+              shortcut='S'
+              show={showKeyboardShortcuts}
+              sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                zIndex: 1000,
+              }}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Multi-select Toolbar */}

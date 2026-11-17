@@ -604,6 +604,86 @@ const RedeemPoints = (userId, points, circleID) => {
   })
 }
 
+// Redeem a member's whole available balance (admin only).
+const PayoutPoints = (userId, circleID) => {
+  return Fetch(`/circles/${circleID}/members/points/payout`, {
+    method: 'POST',
+    headers: HEADERS(),
+    body: JSON.stringify({ userId }),
+  })
+}
+
+// Chores waiting for approval, across the circle.
+const GetPendingApprovals = () => {
+  return Fetch(`/chores/pending`, {
+    method: 'GET',
+    headers: HEADERS(),
+  })
+}
+
+// Bulk approve. Pass an array of chore ids, or 'all' for every pending chore.
+const BulkApproveChores = choreIds => {
+  return Fetch(`/chores/approve`, {
+    method: 'POST',
+    headers: HEADERS(),
+    body: JSON.stringify(choreIds === 'all' ? { all: true } : { choreIds }),
+  })
+}
+
+const BulkRejectChores = (choreIds, note) => {
+  return Fetch(`/chores/reject`, {
+    method: 'POST',
+    headers: HEADERS(),
+    body: JSON.stringify(note ? { choreIds, note } : { choreIds }),
+  })
+}
+
+const GetHolidays = () => {
+  return Fetch(`/household/holidays`, {
+    method: 'GET',
+    headers: HEADERS(),
+  })
+}
+
+// holiday: { name, startDate, endDate } with YYYY-MM-DD dates (inclusive).
+const CreateHoliday = holiday => {
+  return Fetch(`/household/holidays`, {
+    method: 'POST',
+    headers: HEADERS(),
+    body: JSON.stringify(holiday),
+  })
+}
+
+const DeleteHoliday = id => {
+  return Fetch(`/household/holidays/${id}`, {
+    method: 'DELETE',
+    headers: HEADERS(),
+  })
+}
+
+const GetKioskStatus = () => {
+  return Fetch(`/household/kiosk`, {
+    method: 'GET',
+    headers: HEADERS(),
+  })
+}
+
+const CreateKioskToken = () => {
+  return Fetch(`/household/kiosk/token`, {
+    method: 'POST',
+    headers: HEADERS(),
+    body: JSON.stringify({}),
+  })
+}
+
+const SetKioskPin = pin => {
+  return Fetch(`/household/kiosk/pin`, {
+    method: 'PUT',
+    headers: HEADERS(),
+    body: JSON.stringify({ pin }),
+  })
+}
+
 const DepositPoints = (userId, points, circleID) => {
   return Fetch(`/circles/${circleID}/members/points/deposit`, {
     method: 'POST',
@@ -1016,6 +1096,16 @@ const TrackFilterUsage = id => {
 export {
   AcceptCircleMemberRequest,
   ApproveChore,
+  BulkApproveChores,
+  BulkRejectChores,
+  CreateHoliday,
+  CreateKioskToken,
+  DeleteHoliday,
+  GetHolidays,
+  GetKioskStatus,
+  GetPendingApprovals,
+  PayoutPoints,
+  SetKioskPin,
   ApproveProjectTask,
   ArchiveChore,
   CancelSubscription,

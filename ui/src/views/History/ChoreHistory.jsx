@@ -36,6 +36,7 @@ import LoadingComponent from '../components/Loading'
 import EditHistoryModal from '../Modals/EditHistoryModal'
 import ConfirmationModal from '../Modals/Inputs/ConfirmationModal'
 import NoteViewerModal from '../Modals/Inputs/NoteViewerModal'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import HistoryCard from './HistoryCard'
 
 const ChoreHistory = () => {
@@ -54,6 +55,8 @@ const ChoreHistory = () => {
   const { data: circleMembersData } = useCircleMembers()
   const updateChoreHistory = useUpdateChoreHistory()
   const deleteChoreHistory = useDeleteChoreHistory()
+  // Kids (circle role 'member') can't edit or delete history.
+  const { isMember } = useCircleRole()
 
   const choreHistory = useMemo(
     () => choreHistoryData?.res || [],
@@ -316,55 +319,57 @@ const ChoreHistory = () => {
                   : null
               }
               trailingActions={
-                <TrailingActions>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      boxShadow: 'inset 2px 0 4px rgba(0,0,0,0.06)',
-                      zIndex: 0,
-                    }}
-                  >
-                    <SwipeAction onClick={() => handleEdit(historyEntry)}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: 'neutral.softBg',
-                          color: 'neutral.700',
-                          px: 3,
-                          height: '100%',
-                          width: '100%',
-                        }}
-                      >
-                        <EditIcon sx={{ fontSize: 20 }} />
-                        <Typography level='body-xs' sx={{ mt: 0.5 }}>
-                          Edit
-                        </Typography>
-                      </Box>
-                    </SwipeAction>
-                    <SwipeAction onClick={() => handleDelete(historyEntry)}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: 'danger.softBg',
-                          color: 'danger.700',
-                          px: 3,
-                          height: '100%',
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 20 }} />
-                        <Typography level='body-xs' sx={{ mt: 0.5 }}>
-                          Delete
-                        </Typography>
-                      </Box>
-                    </SwipeAction>
-                  </Box>
-                </TrailingActions>
+                isMember ? null : (
+                  <TrailingActions>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        boxShadow: 'inset 2px 0 4px rgba(0,0,0,0.06)',
+                        zIndex: 0,
+                      }}
+                    >
+                      <SwipeAction onClick={() => handleEdit(historyEntry)}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: 'neutral.softBg',
+                            color: 'neutral.700',
+                            px: 3,
+                            height: '100%',
+                            width: '100%',
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 20 }} />
+                          <Typography level='body-xs' sx={{ mt: 0.5 }}>
+                            Edit
+                          </Typography>
+                        </Box>
+                      </SwipeAction>
+                      <SwipeAction onClick={() => handleDelete(historyEntry)}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: 'danger.softBg',
+                            color: 'danger.700',
+                            px: 3,
+                            height: '100%',
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 20 }} />
+                          <Typography level='body-xs' sx={{ mt: 0.5 }}>
+                            Delete
+                          </Typography>
+                        </Box>
+                      </SwipeAction>
+                    </Box>
+                  </TrailingActions>
+                )
               }
             >
               <HistoryCard
@@ -380,14 +385,18 @@ const ChoreHistory = () => {
                     onClose: () => setNoteViewerConfig({ isOpen: false }),
                   })
                 }}
-                onToggleActions={() => {
-                  const id = historyEntry.id || index
-                  if (showMoreInfoId === id) {
-                    setShowMoreInfoId(null)
-                  } else {
-                    setShowMoreInfoId(id)
-                  }
-                }}
+                onToggleActions={
+                  isMember
+                    ? undefined
+                    : () => {
+                        const id = historyEntry.id || index
+                        if (showMoreInfoId === id) {
+                          setShowMoreInfoId(null)
+                        } else {
+                          setShowMoreInfoId(id)
+                        }
+                      }
+                }
               />
             </SwipeableListItem>
           ))}
