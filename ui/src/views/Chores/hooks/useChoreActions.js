@@ -13,6 +13,7 @@ import {
   UpdateChoreAssignee,
   UpdateDueDate,
 } from '../../../utils/Fetcher'
+import { readApiError } from '../../../utils/ApiErrors'
 
 export const useChoreActions = ({
   chores,
@@ -214,7 +215,14 @@ export const useChoreActions = ({
               // (This brings in the next occurrence if recurring, without showing the completed one)
               queryClient.invalidateQueries({ queryKey: ['chores'] })
             } else {
-              refetchChores() // Network failed, revert to truth
+              refetchChores() // Server refused, revert to truth
+              showError({
+                title: 'Could not complete task',
+                message: await readApiError(
+                  response,
+                  'The task could not be marked as done.',
+                ),
+              })
             }
           } catch (error) {
             refetchChores() // Network failed, revert to truth
@@ -270,6 +278,15 @@ export const useChoreActions = ({
             if (response.ok) {
               const data = await response.json()
               updateChoreInState(data.res, 'approved')
+              queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] })
+            } else {
+              showError({
+                title: 'Failed to approve',
+                message: await readApiError(
+                  response,
+                  'Unable to approve chore',
+                ),
+              })
             }
           } catch (error) {
             showError({
@@ -285,6 +302,12 @@ export const useChoreActions = ({
             if (response.ok) {
               const data = await response.json()
               updateChoreInState(data.res, 'rejected')
+              queryClient.invalidateQueries({ queryKey: ['pendingApprovals'] })
+            } else {
+              showError({
+                title: 'Failed to reject',
+                message: await readApiError(response, 'Unable to reject chore'),
+              })
             }
           } catch (error) {
             showError({
@@ -449,17 +472,25 @@ export const useChoreActions = ({
         impersonatedUser ? { completedBy: impersonatedUser.userId } : null,
         new Date(newDate).toISOString(),
         null,
-      ).then(response => {
+      ).then(async response => {
         if (response.ok) {
           response.json().then(data => {
             const newChore = data.res
             updateChoreInState(newChore, 'completed')
           })
+        } else {
+          showError({
+            title: 'Could not complete task',
+            message: await readApiError(
+              response,
+              'The task could not be marked as done.',
+            ),
+          })
         }
       })
       closeModal()
     },
-    [modalChore, impersonatedUser, updateChoreInState, closeModal],
+    [modalChore, impersonatedUser, updateChoreInState, closeModal, showError],
   )
 
   const handleAssigneeChange = useCallback(
@@ -488,17 +519,25 @@ export const useChoreActions = ({
           : { note },
         null,
         null,
-      ).then(response => {
+      ).then(async response => {
         if (response.ok) {
           response.json().then(data => {
             const newChore = data.res
             updateChoreInState(newChore, 'completed')
           })
+        } else {
+          showError({
+            title: 'Could not complete task',
+            message: await readApiError(
+              response,
+              'The task could not be marked as done.',
+            ),
+          })
         }
       })
       closeModal()
     },
-    [modalChore, impersonatedUser, updateChoreInState, closeModal],
+    [modalChore, impersonatedUser, updateChoreInState, closeModal, showError],
   )
 
   const handleNudge = useCallback(
@@ -544,10 +583,11 @@ export const useChoreActions = ({
           try {
             const completedTasks = []
             const failedTasks = []
+            let firstError = null
 
             for (const chore of selectedData) {
               try {
-                await MarkChoreComplete(
+                const response = await MarkChoreComplete(
                   chore.id,
                   impersonatedUser
                     ? { completedBy: impersonatedUser.userId }
@@ -555,7 +595,17 @@ export const useChoreActions = ({
                   null,
                   null,
                 )
-                completedTasks.push(chore)
+                if (response && response.ok) {
+                  completedTasks.push(chore)
+                } else {
+                  failedTasks.push(chore)
+                  if (!firstError) {
+                    firstError = `${chore.name}: ${await readApiError(
+                      response,
+                      'could not be completed',
+                    )}`
+                  }
+                }
               } catch (error) {
                 failedTasks.push(chore)
               }
@@ -571,7 +621,9 @@ export const useChoreActions = ({
             if (failedTasks.length > 0) {
               showError({
                 title: 'Some Tasks Failed',
-                message: `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be completed.`,
+                message: firstError
+                  ? `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be completed. ${firstError}`
+                  : `${failedTasks.length} task${failedTasks.length > 1 ? 's' : ''} could not be completed.`,
               })
             }
 

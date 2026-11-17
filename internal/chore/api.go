@@ -9,6 +9,7 @@ import (
 	"donetick.com/core/internal/auth"
 	authMiddleware "donetick.com/core/internal/auth"
 	chRepo "donetick.com/core/internal/chore/repo"
+	chSched "donetick.com/core/internal/chore/scheduling"
 	"donetick.com/core/internal/events"
 	nps "donetick.com/core/internal/notifier/service"
 	"donetick.com/core/internal/utils"
@@ -25,6 +26,7 @@ import (
 )
 
 type API struct {
+	hh            *Handler
 	choreRepo     *chRepo.ChoreRepository
 	userRepo      *uRepo.UserRepository
 	circleRepo    *cRepo.CircleRepository
@@ -33,8 +35,9 @@ type API struct {
 	stRepo        *stRepo.SubTasksRepository
 }
 
-func NewAPI(cr *chRepo.ChoreRepository, userRepo *uRepo.UserRepository, circleRepo *cRepo.CircleRepository, nPlanner *nps.NotificationPlanner, eventProducer *events.EventsProducer, stRepo *stRepo.SubTasksRepository) *API {
+func NewAPI(cr *chRepo.ChoreRepository, userRepo *uRepo.UserRepository, circleRepo *cRepo.CircleRepository, nPlanner *nps.NotificationPlanner, eventProducer *events.EventsProducer, stRepo *stRepo.SubTasksRepository, hh *Handler) *API {
 	return &API{
+		hh:            hh,
 		choreRepo:     cr,
 		userRepo:      userRepo,
 		circleRepo:    circleRepo,
@@ -340,13 +343,18 @@ func (h *API) UpdateChore(c *gin.Context) {
 		nextDueDate = &parsedDate
 	}
 
-	// Update only name and due date
+	// Update only name, description and due date. A field the caller left out
+	// keeps its value: nulling it would wipe a chore edited from Home Assistant.
 	updates := map[string]interface{}{
-		"name":          choreRequest.Name,
-		"description":   choreRequest.Description,
-		"next_due_date": nextDueDate,
-		"updated_by":    user.ID,
-		"updated_at":    time.Now().UTC(),
+		"name":       choreRequest.Name,
+		"updated_by": user.ID,
+		"updated_at": time.Now().UTC(),
+	}
+	if choreRequest.Description != nil {
+		updates["description"] = choreRequest.Description
+	}
+	if nextDueDate != nil {
+		updates["next_due_date"] = nextDueDate
 	}
 
 	err = h.choreRepo.UpdateChoreFields(c, choreID, updates)
@@ -434,6 +442,11 @@ func (h *API) CompleteChore(c *gin.Context) {
 		}
 	}
 
+	if chore.Status == chModel.ChoreStatusPendingApproval {
+		c.JSON(409, gin.H{"error": "Chore is already waiting for approval"})
+		return
+	}
+
 	// Check if chore requires approval
 	if chore.RequireApproval {
 		// Set chore status to pending approval instead of completing
@@ -460,35 +473,6 @@ func (h *API) CompleteChore(c *gin.Context) {
 		return
 	}
 
-	var nextDueDate *time.Time
-	if chore.FrequencyType == "adaptive" {
-		history, err := h.choreRepo.GetChoreHistoryWithLimit(c, chore.ID, 5)
-		if err != nil {
-			c.JSON(500, gin.H{
-				"error": "Error getting chore history",
-			})
-			return
-		}
-		nextDueDate, err = scheduleAdaptiveNextDueDate(chore, completedDate, history)
-		if err != nil {
-			log.Debugw("chore.api.CompleteChore failed to schedule adaptive next due date", "error", err)
-
-			c.JSON(500, gin.H{
-				"error": "Error scheduling next due date",
-			})
-			return
-		}
-
-	} else {
-		nextDueDate, err = scheduleNextDueDate(c, chore, completedDate.UTC())
-		if err != nil {
-			log.Debugw("chore.api.CompleteChore failed to schedule next due date", "error", err)
-			c.JSON(500, gin.H{
-				"error": "Error scheduling next due date",
-			})
-			return
-		}
-	}
 	choreHistory, err := h.choreRepo.GetChoreHistory(c, chore.ID)
 	if err != nil {
 		c.JSON(500, gin.H{
@@ -496,13 +480,10 @@ func (h *API) CompleteChore(c *gin.Context) {
 		})
 		return
 	}
-
-	nextAssignedTo, err := checkNextAssignee(chore, choreHistory, performer)
+	nextDueDate, nextAssignedTo, err := h.hh.planNext(c, chore, completedDate, performer, choreHistory)
 	if err != nil {
-		log.Debugw("chore.api.CompleteChore failed to check next assignee", "error", err)
-		c.JSON(500, gin.H{
-			"error": "Error checking next assignee",
-		})
+		log.Errorw("chore.api.CompleteChore failed to plan next occurrence", "error", err)
+		c.JSON(500, gin.H{"error": "Error scheduling next due date"})
 		return
 	}
 
@@ -581,14 +562,25 @@ func (h *API) SkipChore(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Chore has no due date to skip"})
 		return
 	}
+	if chore.Status == chModel.ChoreStatusPendingApproval {
+		c.JSON(409, gin.H{"error": "Chore is waiting for approval; approve or reject it first"})
+		return
+	}
 	nextDueDate, err := scheduleNextDueDate(c, chore, chore.NextDueDate.UTC())
+	if err == nil {
+		nextDueDate, err = h.hh.finaliseDue(c, chore, nextDueDate)
+	}
 	if err != nil {
 		log.Debugw("chore.api.SkipChore failed to schedule next due date", "error", err)
 		c.JSON(500, gin.H{"error": "Error scheduling next due date"})
 		return
 	}
+	nextAssignedTo := chore.AssignedTo
+	if chore.AssignStrategy == chModel.AssignmentStrategyWeeklyRotation && nextDueDate != nil {
+		nextAssignedTo = chSched.RotationAssignee(chore, *nextDueDate, localZone())
+	}
 
-	if err := h.choreRepo.SkipChore(c, chore, performer, nextDueDate, chore.AssignedTo); err != nil {
+	if err := h.choreRepo.SkipChore(c, chore, performer, nextDueDate, nextAssignedTo); err != nil {
 		log.Errorw("chore.api.SkipChore failed to skip chore", "error", err)
 		c.JSON(500, gin.H{"error": "Error skipping chore"})
 		return
@@ -604,147 +596,59 @@ func (h *API) SkipChore(c *gin.Context) {
 }
 
 func (h *API) ApproveChore(c *gin.Context) {
-	log := logging.FromContext(c)
 	choreID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Invalid ID"})
 		return
 	}
 	currentUser := auth.MustCurrentUser(c)
-
+	if !h.hh.requireManager(c) {
+		return
+	}
 	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
 	if err != nil {
-		log.Errorw("chore.api.ApproveChore failed to get chore", "error", err)
 		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
 		return
 	}
-
-	circleUsers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
+	updated, err := h.hh.approvePending(c, currentUser, chore)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve circle users"})
+		code, msg := errorStatus(err)
+		c.JSON(code, gin.H{"error": msg})
 		return
 	}
-	if !currentUser.IsAdminOrManager(circleUsers) {
-		c.JSON(403, gin.H{"error": "Only admins can approve chores"})
-		return
-	}
-	if chore.Status != chModel.ChoreStatusPendingApproval {
-		c.JSON(400, gin.H{"error": "Chore is not pending approval"})
-		return
-	}
-
-	allHistory, err := h.choreRepo.GetChoreHistory(c, chore.ID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch chore history for approval process"})
-		return
-	}
-	var pendingHistory *chModel.ChoreHistory
-	for _, hist := range allHistory {
-		if hist.Status == chModel.ChoreHistoryStatusPendingApproval {
-			pendingHistory = hist
-			break
-		}
-	}
-	if pendingHistory == nil {
-		c.JSON(500, gin.H{"error": "No pending approval history found"})
-		return
-	}
-
-	completedBy := pendingHistory.CompletedBy
-	completedDate := *pendingHistory.PerformedAt
-
-	var nextDueDate *time.Time
-	if chore.FrequencyType == "adaptive" {
-		histLimited, errH := h.choreRepo.GetChoreHistoryWithLimit(c, chore.ID, 5)
-		if errH != nil {
-			c.JSON(500, gin.H{"error": "Failed to fetch chore history for adaptive scheduling"})
-			return
-		}
-		nextDueDate, err = scheduleAdaptiveNextDueDate(chore, completedDate, histLimited)
-	} else {
-		nextDueDate, err = scheduleNextDueDate(c, chore, completedDate.UTC())
-	}
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Error scheduling next due date"})
-		return
-	}
-
-	nextAssignedTo, err := checkNextAssignee(chore, allHistory, completedBy)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Error checking next assignee"})
-		return
-	}
-
-	if err := h.choreRepo.ApproveChore(c, chore, currentUser.ID, nextDueDate, nextAssignedTo, true); err != nil {
-		c.JSON(500, gin.H{"error": "Error approving chore"})
-		return
-	}
-
-	updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
-		return
-	}
-	if updatedChore.SubTasks != nil && updatedChore.FrequencyType != chModel.FrequencyTypeOnce {
-		if err := h.stRepo.ResetSubtasksCompletion(c, updatedChore.ID); err != nil {
-			log.Errorw("chore.api.ApproveChore failed to reset subtasks completion", "error", err, "choreID", updatedChore.ID)
-		}
-	}
-	h.nPlanner.GenerateNotifications(c, updatedChore)
-	h.eventProducer.ChoreCompleted(c, currentUser.WebhookURL, chore, &currentUser.User)
-	c.JSON(200, updatedChore)
+	c.JSON(200, updated)
 }
 
 func (h *API) RejectChore(c *gin.Context) {
-	log := logging.FromContext(c)
 	choreID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Invalid ID"})
 		return
 	}
 	currentUser := auth.MustCurrentUser(c)
-
 	var req struct {
 		Note string `json:"note"`
 	}
 	_ = c.ShouldBindJSON(&req)
-
+	if !h.hh.requireManager(c) {
+		return
+	}
 	chore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
 	if err != nil {
-		log.Errorw("chore.api.RejectChore failed to get chore", "error", err)
 		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
 		return
 	}
-
-	circleUsers, err := h.circleRepo.GetCircleUsers(c, currentUser.CircleID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve circle users"})
-		return
-	}
-	if !currentUser.IsAdminOrManager(circleUsers) {
-		c.JSON(403, gin.H{"error": "Only admins can reject chores"})
-		return
-	}
-	if chore.Status != chModel.ChoreStatusPendingApproval {
-		c.JSON(400, gin.H{"error": "Chore is not pending approval"})
-		return
-	}
-
-	var rejectionNote *string
+	var note *string
 	if req.Note != "" {
-		rejectionNote = &req.Note
+		note = &req.Note
 	}
-	if err := h.choreRepo.RejectChore(c, choreID, rejectionNote); err != nil {
-		c.JSON(500, gin.H{"error": "Error rejecting chore"})
-		return
-	}
-
-	updatedChore, err := h.choreRepo.GetChore(c, choreID, currentUser.ID, currentUser.CircleID)
+	updated, err := h.hh.rejectPending(c, currentUser, chore, note)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve chore"})
+		code, msg := errorStatus(err)
+		c.JSON(code, gin.H{"error": msg})
 		return
 	}
-	c.JSON(200, updatedChore)
+	c.JSON(200, updated)
 }
 
 func (h *API) GetCircleMembers(c *gin.Context) {
@@ -795,8 +699,11 @@ func APIs(cfg *config.Config, api *API, r *gin.Engine, auth *jwt.GinJWTMiddlewar
 	{
 		tasksAPI.GET("", api.GetAllChores)
 		tasksAPI.GET("/:id", api.GetChore)
-		tasksAPI.POST("", api.CreateChore)
-		tasksAPI.DELETE("/:id", api.DeleteChore)
+		tasksAPI.GET("/pending", api.hh.managerOnly, api.hh.getPending)
+		tasksAPI.POST("/approve", api.hh.bulkHandler(true))
+		tasksAPI.POST("/reject", api.hh.bulkHandler(false))
+		tasksAPI.POST("", api.hh.managerOnly, api.CreateChore)
+		tasksAPI.DELETE("/:id", api.hh.managerOnly, api.DeleteChore)
 	}
 
 	// Plus member only endpoints
@@ -809,10 +716,10 @@ func APIs(cfg *config.Config, api *API, r *gin.Engine, auth *jwt.GinJWTMiddlewar
 	)
 	{
 		tasksPlusAPI.POST("/:id/complete", api.CompleteChore)
-		tasksPlusAPI.POST("/:id/skip", api.SkipChore)
+		tasksPlusAPI.POST("/:id/skip", api.hh.managerOnly, api.SkipChore)
 		tasksPlusAPI.POST("/:id/approve", api.ApproveChore)
 		tasksPlusAPI.POST("/:id/reject", api.RejectChore)
-		tasksPlusAPI.PUT("/:id", api.UpdateChore)
+		tasksPlusAPI.PUT("/:id", api.hh.managerOnly, api.UpdateChore)
 	}
 
 	circleAPI := r.Group("eapi/v1/circle")
@@ -824,6 +731,16 @@ func APIs(cfg *config.Config, api *API, r *gin.Engine, auth *jwt.GinJWTMiddlewar
 	)
 	{
 		circleAPI.GET("/members", api.GetCircleMembers)
+	}
+
+	householdAPI := r.Group("eapi/v1/household")
+	householdAPI.Use(
+		utils.TimeoutMiddleware(cfg.Server.WriteTimeout),
+		utils.RateLimitMiddleware(limiter),
+		authMiddleware.APITokenMiddleware(userRepo),
+	)
+	{
+		householdAPI.GET("/checkpoints", api.hh.getCheckpoints)
 	}
 
 }

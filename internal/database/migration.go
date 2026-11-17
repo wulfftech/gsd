@@ -12,6 +12,7 @@ import (
 	chModel "donetick.com/core/internal/chore/model"
 	cModel "donetick.com/core/internal/circle/model"
 	filterModel "donetick.com/core/internal/filter/model"
+	"donetick.com/core/internal/household"
 	lModel "donetick.com/core/internal/label/model"
 	nModel "donetick.com/core/internal/notifier/model"
 	pModel "donetick.com/core/internal/points"
@@ -64,6 +65,8 @@ func Migration(db *gorm.DB) error {
 		storageModel.StorageUsage{},
 		chModel.TimeSession{},
 		uModel.UserDeviceToken{},
+		household.Holiday{},
+		household.Settings{},
 	); err != nil {
 		return err
 	}

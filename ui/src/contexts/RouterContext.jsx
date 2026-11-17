@@ -6,6 +6,7 @@ import AdvancedSettings from '@/views/Settings/AdvancedSettings'
 import ChildUserSettings from '@/views/Settings/ChildUserSettings'
 import CircleSettings from '@/views/Settings/CircleSettings'
 import DeveloperSettings from '@/views/Settings/DeveloperSettings'
+import HouseholdSettings from '@/views/Settings/HouseholdSettings'
 import Settings from '@/views/Settings/Settings'
 import SettingsOverview from '@/views/Settings/SettingsOverview'
 import SettingsRoutes from '@/views/Settings/SettingsRoutes'
@@ -22,6 +23,7 @@ import LoginSettings from '../views/Authorization/LoginSettings'
 import LoginView from '../views/Authorization/LoginView'
 import SignupView from '../views/Authorization/Signup'
 import UpdatePasswordView from '../views/Authorization/UpdatePasswordView'
+import ApprovalsView from '../views/Approvals/ApprovalsView'
 import ArchivedTasks from '../views/Chores/ArchivedTasks'
 import MyChores from '../views/Chores/MyChores'
 import JoinCircleView from '../views/Circles/JoinCircle'
@@ -108,6 +110,10 @@ const Router = createBrowserRouter([
             element: <ChildUserSettings />,
           },
           {
+            path: 'household',
+            element: <HouseholdSettings />,
+          },
+          {
             path: 'notifications',
             element: <NotificationSetting />,
           },
@@ -152,6 +158,10 @@ const Router = createBrowserRouter([
       {
         path: '/archived',
         element: <ArchivedTasks />,
+      },
+      {
+        path: '/approvals',
+        element: <ApprovalsView />,
       },
       {
         path: '/chores/:choreId/edit',

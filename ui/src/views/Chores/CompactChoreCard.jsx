@@ -51,6 +51,9 @@ const CompactChoreCard = ({
       member => member.userId === (impersonatedUser?.userId || userProfile?.id),
     )
 
+    // Kids (role 'member') can never approve or reject; the server refuses.
+    if (currentUser?.role === 'member') return false
+
     // User can approve/reject if they are:
     // 1. Admin or manager of the circle
     // 2. Owner/creator of the task

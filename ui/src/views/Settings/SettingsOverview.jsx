@@ -5,6 +5,7 @@ import {
   Circle,
   Code,
   FamilyRestroom,
+  House,
   Language,
   Notifications,
   Palette,
@@ -33,6 +34,7 @@ import {
 } from '@mui/joy'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import { useUserProfile } from '../../queries/UserQueries'
 import { isPlusAccount } from '../../utils/Helpers'
 import { isParentUser } from '../../utils/UserHelpers'
@@ -41,6 +43,7 @@ const SettingsOverview = () => {
   const { t } = useTranslation('settings')
   const navigate = useNavigate()
   const { data: userProfile } = useUserProfile()
+  const { isAdmin: isCircleAdmin } = useCircleRole()
 
   const settingsCards = [
     {
@@ -66,6 +69,12 @@ const SettingsOverview = () => {
       title: t('overview.sections.subaccounts.title'),
       description: t('overview.sections.subaccounts.description'),
       icon: <FamilyRestroom />,
+    },
+    {
+      id: 'household',
+      title: 'Household',
+      description: 'School holidays, kiosk link and parent PIN',
+      icon: <House />,
     },
     {
       id: 'notifications',
@@ -130,6 +139,10 @@ const SettingsOverview = () => {
 
   // Filter settings based on user type
   const getAvailableSettings = () => {
+    // Household settings are for circle admins only.
+    const visibleCards = isCircleAdmin
+      ? settingsCards
+      : settingsCards.filter(setting => setting.id !== 'household')
     const parentOnlySettings = [
       'children',
       'mfa',
@@ -140,10 +153,10 @@ const SettingsOverview = () => {
 
     if (isParentUser(userProfile)) {
       // Parent users can access all settings
-      return settingsCards
+      return visibleCards
     } else {
       // Child users can only access basic settings
-      return settingsCards.filter(
+      return visibleCards.filter(
         setting => !parentOnlySettings.includes(setting.id),
       )
     }

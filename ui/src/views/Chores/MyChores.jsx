@@ -49,6 +49,7 @@ import { useMediaQuery } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
 import { useImpersonateUser } from '../../contexts/ImpersonateUserContext.jsx'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import useStickyState from '../../hooks/useStickyState'
 import Logo from '../../Logo'
 import { useCircleMembers, useUserProfile } from '../../queries/UserQueries'
@@ -98,6 +99,9 @@ const MyChores = () => {
   const { showSuccess, showError, showWarning, showUndo } = useNotification()
   const queryClient = useQueryClient()
   const { impersonatedUser } = useImpersonateUser()
+  // Kids (circle role 'member') can tick tasks off but not create, skip,
+  // archive or delete them.
+  const { isMember } = useCircleRole()
   const Navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: userLabels, isLoading: userLabelsLoading } = useLabels()
@@ -330,6 +334,14 @@ const MyChores = () => {
     userProfile?.id,
   ])
 
+  // Read the current quick filter and project inside the sync effect below
+  // without making them dependencies (the effect must not re-run, and clobber
+  // search results, every time the filter changes).
+  const searchFilterRef = useRef(searchFilter)
+  searchFilterRef.current = searchFilter
+  const selectedProjectRef = useRef(selectedProject)
+  selectedProjectRef.current = selectedProject
+
   useEffect(() => {
     if (
       !choresLoading &&
@@ -339,9 +351,19 @@ const MyChores = () => {
       choresData?.res
     ) {
       const processEffectAsync = async () => {
-        // Sync local state with query data to ensure updates are reflected
+        // Sync local state with query data to ensure updates are reflected.
+        // Re-apply the active quick filter (e.g. "Pending Approval") to the
+        // fresh data instead of resetting it, so the user's choice survives
+        // refetches and SSE syncs.
         setChores(processedChores)
-        setFilteredChores(processedChores)
+        setFilteredChores(
+          reapplyQuickFilter(
+            processedChores,
+            searchFilterRef.current,
+            selectedProjectRef.current,
+            userProfile?.id,
+          ),
+        )
 
         // Don't set choreSections here - let the dedicated effect handle it
         // This prevents caching issues when switching between projects
@@ -624,8 +646,12 @@ const MyChores = () => {
     choreSections,
     openChoreSections,
     handlers: {
-      onOpenTaskModal: () => setAddTaskModalOpen(true),
-      onNavigateToCreate: () => Navigate('/chores/create'),
+      onOpenTaskModal: () => {
+        if (!isMember) setAddTaskModalOpen(true)
+      },
+      onNavigateToCreate: () => {
+        if (!isMember) Navigate('/chores/create')
+      },
       onFocusSearch: () => searchInputRef.current?.focus(),
       onCloseSearch: () => {
         setSearchTerm('')
@@ -643,9 +669,9 @@ const MyChores = () => {
         selectAllVisibleChores(null, choreSections, openChoreSections),
       onClearSelection: clearSelection,
       onBulkComplete: handleBulkComplete,
-      onBulkSkip: handleBulkSkip,
-      onBulkArchive: handleBulkArchive,
-      onBulkDelete: handleBulkDelete,
+      onBulkSkip: isMember ? () => {} : handleBulkSkip,
+      onBulkArchive: isMember ? () => {} : handleBulkArchive,
+      onBulkDelete: isMember ? () => {} : handleBulkDelete,
       onNavigateToArchived: () => Navigate('/archived'),
       onShowMessage: showSuccess,
     },
@@ -1480,9 +1506,9 @@ const MyChores = () => {
           onSelectAll={selectAllVisibleChores}
           onClear={clearSelection}
           onComplete={handleBulkComplete}
-          onSkip={handleBulkSkip}
-          onArchive={handleBulkArchive}
-          onDelete={handleBulkDelete}
+          onSkip={isMember ? undefined : handleBulkSkip}
+          onArchive={isMember ? undefined : handleBulkArchive}
+          onDelete={isMember ? undefined : handleBulkDelete}
           showKeyboardShortcuts={showKeyboardShortcuts}
           selectAllDisabled={
             searchTerm?.length > 0 || searchFilter !== 'All'
@@ -1823,75 +1849,77 @@ const MyChores = () => {
             mt: 2,
           }}
         ></Box>
-        <Box
-          // variant='outlined'
-          sx={{
-            position: 'fixed',
-            bottom: getSafeBottom(10, 10),
-            left: 10,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 2,
-            'z-index': 100,
-          }}
-        >
-          <IconButton
-            color='primary'
-            variant='solid'
+        {!isMember && (
+          <Box
+            // variant='outlined'
             sx={{
-              borderRadius: '50%',
-              width: 50,
-              height: 50,
-              zIndex: 101,
-              position: 'relative',
+              position: 'fixed',
+              bottom: getSafeBottom(10, 10),
+              left: 10,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 2,
+              'z-index': 100,
             }}
-            onClick={() => {
-              Navigate(`/chores/create`)
-            }}
-            title='Create new chore (Cmd+C)'
           >
-            <Add />
-            <KeyboardShortcutHint
+            <IconButton
+              color='primary'
+              variant='solid'
               sx={{
-                position: 'absolute',
-                top: -8,
-                right: -8,
-                zIndex: 1000,
+                borderRadius: '50%',
+                width: 50,
+                height: 50,
+                zIndex: 101,
+                position: 'relative',
               }}
-              show={showKeyboardShortcuts}
-              shortcut='J'
-            />
-          </IconButton>
-          <IconButton
-            color='primary'
-            variant='soft'
-            sx={{
-              borderRadius: '50%',
-              width: 25,
-              height: 25,
-              position: 'relative',
-              left: -25,
-              top: 22,
-            }}
-            onClick={() => {
-              setAddTaskModalOpen(true)
-            }}
-          >
-            <Bolt
-              style={{
-                rotate: '20deg',
+              onClick={() => {
+                Navigate(`/chores/create`)
               }}
-            />
-          </IconButton>
+              title='Create new chore (Cmd+C)'
+            >
+              <Add />
+              <KeyboardShortcutHint
+                sx={{
+                  position: 'absolute',
+                  top: -8,
+                  right: -8,
+                  zIndex: 1000,
+                }}
+                show={showKeyboardShortcuts}
+                shortcut='J'
+              />
+            </IconButton>
+            <IconButton
+              color='primary'
+              variant='soft'
+              sx={{
+                borderRadius: '50%',
+                width: 25,
+                height: 25,
+                position: 'relative',
+                left: -25,
+                top: 22,
+              }}
+              onClick={() => {
+                setAddTaskModalOpen(true)
+              }}
+            >
+              <Bolt
+                style={{
+                  rotate: '20deg',
+                }}
+              />
+            </IconButton>
 
-          <KeyboardShortcutHint
-            sx={{ position: 'relative', left: -40, top: 30 }}
-            show={showKeyboardShortcuts}
-            shortcut='K'
-          />
-        </Box>
+            <KeyboardShortcutHint
+              sx={{ position: 'relative', left: -40, top: 30 }}
+              show={showKeyboardShortcuts}
+              shortcut='K'
+            />
+          </Box>
+        )}
         <NotificationAccessSnackbar />
-        {addTaskModalOpen && (
+        {addTaskModalOpen && !isMember && (
           <TaskInput
             autoFocus={taskInputFocus}
             onChoreUpdate={updateChores}
@@ -2038,6 +2066,36 @@ const FILTERS = {
       return chore.status === 3
     })
   },
+}
+
+// Re-run the active quick filter (FILTERS entry, label or priority chip)
+// against fresh chore data. Mirrors the base the filter handlers use:
+// project-scoped chores when a project is selected, otherwise all chores.
+const reapplyQuickFilter = (chores, searchFilter, selectedProject, userId) => {
+  if (!searchFilter || searchFilter === 'All') {
+    return chores
+  }
+  let baseChores = chores
+  if (selectedProject) {
+    baseChores =
+      selectedProject.id === 'default'
+        ? chores.filter(chore => !chore.projectId)
+        : filterByProject(chores, selectedProject.id)
+  }
+  if (FILTERS[searchFilter]) {
+    return FILTERS[searchFilter](baseChores, userId)
+  }
+  if (searchFilter.startsWith('Label: ')) {
+    const labelName = searchFilter.slice('Label: '.length)
+    return baseChores.filter(chore =>
+      chore.labelsV2?.some(l => l.name === labelName),
+    )
+  }
+  if (searchFilter.startsWith('Priority: ')) {
+    const priority = Number(searchFilter.slice('Priority: '.length))
+    return baseChores.filter(chore => chore.priority === priority)
+  }
+  return chores
 }
 
 export default MyChores

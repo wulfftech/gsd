@@ -42,6 +42,7 @@ const (
 	AssignmentStrategyRandomExceptLastAssigned AssignmentStrategy = "random_except_last_assigned"
 	AssignmentStrategyRoundRobin               AssignmentStrategy = "round_robin"
 	AssignmentStrategyNoAssignee               AssignmentStrategy = "no_assignee"
+	AssignmentStrategyWeeklyRotation           AssignmentStrategy = "weekly_rotation"
 )
 
 type Chore struct {
@@ -79,6 +80,64 @@ type Chore struct {
 	DeadlineOffset         *int                  `json:"deadlineOffset,omitempty" gorm:"column:deadline_offset"`      // Seconds after NextDueDate when chore deadline is reached
 	ProjectID              *int                  `json:"projectId,omitempty" gorm:"column:project_id;index"`          // The project this chore belongs to
 	Project                *pModel.Project       `json:"project,omitempty" gorm:"foreignkey:ProjectID;references:ID"` // Project relationship
+	Checkpoint             Checkpoint            `json:"checkpoint" gorm:"column:checkpoint;default:''"`              // Which daily checkpoint this job belongs to
+	SkipHolidays           bool                  `json:"skipHolidays" gorm:"column:skip_holidays;default:false"`      // Never schedule inside a school-holiday period
+	RotationOrder          *IntList              `json:"rotationOrder" gorm:"column:rotation_order;type:json"`        // User ids in order, for weekly_rotation
+	RotationAnchor         *time.Time            `json:"rotationAnchor" gorm:"column:rotation_anchor"`                // Any instant in week 1 of the rotation
+}
+
+// Checkpoint groups a kid's jobs into the daily gates that unlock screens.
+type Checkpoint string
+
+const (
+	CheckpointNone      Checkpoint = ""
+	CheckpointMorning   Checkpoint = "morning"
+	CheckpointAfternoon Checkpoint = "afternoon"
+	CheckpointEvening   Checkpoint = "evening"
+	CheckpointExtra     Checkpoint = "extra"
+)
+
+// GatedCheckpoints are the checkpoints that have a daily done/not-done state.
+var GatedCheckpoints = []Checkpoint{CheckpointMorning, CheckpointAfternoon, CheckpointEvening}
+
+func (c Checkpoint) Valid() bool {
+	switch c {
+	case CheckpointNone, CheckpointMorning, CheckpointAfternoon, CheckpointEvening, CheckpointExtra:
+		return true
+	}
+	return false
+}
+
+// IntList is a JSON-encoded list of ints stored in a single column.
+type IntList []int
+
+func (l IntList) Value() (driver.Value, error) {
+	b, err := json.Marshal([]int(l))
+	if err != nil {
+		return nil, err
+	}
+	return string(b), nil
+}
+
+func (l *IntList) Scan(value interface{}) error {
+	if value == nil {
+		*l = nil
+		return nil
+	}
+	var b []byte
+	switch v := value.(type) {
+	case []byte:
+		b = v
+	case string:
+		b = []byte(v)
+	default:
+		return fmt.Errorf("IntList: unsupported type %T", value)
+	}
+	if len(b) == 0 {
+		*l = nil
+		return nil
+	}
+	return json.Unmarshal(b, (*[]int)(l))
 }
 
 type Status int8
@@ -244,6 +303,10 @@ type ChoreReq struct {
 	DeadlineOffset       *int                  `json:"deadlineOffset,omitempty"`
 	ProjectID            *int                  `json:"projectId,omitempty"`
 	UpdatedAt            *time.Time            `json:"updatedAt,omitempty"` // For internal use only when syncing a chore updated offline
+	Checkpoint           Checkpoint            `json:"checkpoint"`
+	SkipHolidays         bool                  `json:"skipHolidays"`
+	RotationOrder        *IntList              `json:"rotationOrder"`
+	RotationAnchor       *time.Time            `json:"rotationAnchor"`
 }
 
 func (c *Chore) GetDeadline() *time.Time {

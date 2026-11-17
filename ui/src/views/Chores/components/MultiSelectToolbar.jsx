@@ -190,85 +190,91 @@ const MultiSelectToolbar = ({
               />
             )}
           </Button>
-          <Button
-            size='sm'
-            variant='soft'
-            color='warning'
-            onClick={onSkip}
-            startDecorator={<SkipNext />}
-            disabled={selectedCount === 0}
-            sx={{
-              '--Button-paddingInline': { xs: '0.75rem', sm: '1rem' },
-              position: 'relative',
-            }}
-            title='Skip selected tasks (/)'
-          >
-            Skip
-            {showKeyboardShortcuts && selectedCount > 0 && (
-              <KeyboardShortcutHint
-                shortcut='/'
-                sx={{
-                  position: 'absolute',
-                  top: -8,
-                  right: -8,
-                  zIndex: 1000,
-                }}
-              />
-            )}
-          </Button>
-          <Button
-            size='sm'
-            variant='soft'
-            color='danger'
-            onClick={onArchive}
-            startDecorator={<Archive />}
-            disabled={selectedCount === 0}
-            sx={{
-              '--Button-paddingInline': { xs: '0.75rem', sm: '1rem' },
-              position: 'relative',
-            }}
-            title='Archive selected tasks (X)'
-          >
-            Archive
-            {showKeyboardShortcuts && selectedCount > 0 && (
-              <KeyboardShortcutHint
-                shortcut='X'
-                sx={{
-                  position: 'absolute',
-                  top: -8,
-                  right: -8,
-                  zIndex: 1000,
-                }}
-              />
-            )}
-          </Button>
+          {onSkip && (
+            <Button
+              size='sm'
+              variant='soft'
+              color='warning'
+              onClick={onSkip}
+              startDecorator={<SkipNext />}
+              disabled={selectedCount === 0}
+              sx={{
+                '--Button-paddingInline': { xs: '0.75rem', sm: '1rem' },
+                position: 'relative',
+              }}
+              title='Skip selected tasks (/)'
+            >
+              Skip
+              {showKeyboardShortcuts && selectedCount > 0 && (
+                <KeyboardShortcutHint
+                  shortcut='/'
+                  sx={{
+                    position: 'absolute',
+                    top: -8,
+                    right: -8,
+                    zIndex: 1000,
+                  }}
+                />
+              )}
+            </Button>
+          )}
+          {onArchive && (
+            <Button
+              size='sm'
+              variant='soft'
+              color='danger'
+              onClick={onArchive}
+              startDecorator={<Archive />}
+              disabled={selectedCount === 0}
+              sx={{
+                '--Button-paddingInline': { xs: '0.75rem', sm: '1rem' },
+                position: 'relative',
+              }}
+              title='Archive selected tasks (X)'
+            >
+              Archive
+              {showKeyboardShortcuts && selectedCount > 0 && (
+                <KeyboardShortcutHint
+                  shortcut='X'
+                  sx={{
+                    position: 'absolute',
+                    top: -8,
+                    right: -8,
+                    zIndex: 1000,
+                  }}
+                />
+              )}
+            </Button>
+          )}
 
-          <Button
-            size='sm'
-            variant='soft'
-            color='danger'
-            onClick={onDelete}
-            startDecorator={<Delete />}
-            disabled={selectedCount === 0}
-            sx={{
-              '--Button-paddingInline': { xs: '0.75rem', sm: '1rem' },
-              position: 'relative',
-            }}
-            title='Delete selected tasks (Shift+X)'
-          >
-            Delete
-            {showKeyboardShortcuts && selectedCount > 0 && (
-              <KeyboardShortcutHint
-                shortcut='E'
-                sx={{
-                  position: 'absolute',
-                  top: -8,
-                  right: -8,
-                  zIndex: 1000,
-                }}
-              />
-            )}
-          </Button>
+          {onDelete && (
+            <Button
+              size='sm'
+              variant='soft'
+              color='danger'
+              onClick={onDelete}
+              startDecorator={<Delete />}
+              disabled={selectedCount === 0}
+              sx={{
+                '--Button-paddingInline': { xs: '0.75rem', sm: '1rem' },
+                position: 'relative',
+              }}
+              title='Delete selected tasks (Shift+X)'
+            >
+              Delete
+              {showKeyboardShortcuts && selectedCount > 0 && (
+                <KeyboardShortcutHint
+                  shortcut='E'
+                  sx={{
+                    position: 'absolute',
+                    top: -8,
+                    right: -8,
+                    zIndex: 1000,
+                  }}
+                />
+              )}
+            </Button>
+          )}
         </Box>
       </Box>
     </Box>

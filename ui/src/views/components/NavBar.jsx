@@ -4,6 +4,7 @@ import {
   ArrowBack,
   CardGiftcard,
   Dashboard,
+  FactCheck,
   FilterAlt,
   FolderOpen,
   History,
@@ -43,6 +44,8 @@ import NavBarLink from './NavBarLink'
 import { SafeArea } from 'capacitor-plugin-safe-area'
 import { PINNED_DRAWER_WIDTH } from '../../constants/layout'
 import Z_INDEX from '../../constants/zIndex'
+import { useCircleRole } from '../../hooks/useCircleRole'
+import { usePendingApprovals } from '../../queries/HouseholdQueries'
 import { useResource } from '../../queries/ResourceQueries'
 import { apiClient } from '../../utils/ApiClient'
 
@@ -178,6 +181,14 @@ const NavBar = () => {
       )
     : 0
 
+  // Chores waiting for approval: admins and managers only, refreshed every
+  // 30 s by the query itself.
+  const { canManage } = useCircleRole()
+  const { data: pendingChores = [] } = usePendingApprovals({
+    enabled: canManage && !isPublicPage && !!userProfile,
+  })
+  const pendingChoreCount = canManage ? pendingChores.length : 0
+
   const links = [
     {
       to: '/dashboard',
@@ -189,6 +200,16 @@ const NavBar = () => {
       label: t('navigation.allTasks'),
       icon: <Inbox />,
     },
+    ...(canManage
+      ? [
+          {
+            to: '/approvals',
+            label: 'Approvals',
+            icon: <FactCheck />,
+            badge: pendingChoreCount,
+          },
+        ]
+      : []),
     {
       to: '/archived',
       label: t('navigation.archived'),
@@ -364,6 +385,18 @@ const NavBar = () => {
       {getMenuIcon()}
       <Box className='flex-1' />
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {pendingChoreCount > 0 && (
+          <Chip
+            size='sm'
+            color='warning'
+            variant='solid'
+            startDecorator={<FactCheck sx={{ fontSize: 14 }} />}
+            onClick={() => navigate('/approvals')}
+            sx={{ cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
+          >
+            {pendingChoreCount} to approve
+          </Chip>
+        )}
         {pendingApprovalCount > 0 && (
           <Chip
             size='sm'
@@ -372,7 +405,8 @@ const NavBar = () => {
             onClick={() => navigate('/projects')}
             sx={{ cursor: 'pointer', fontWeight: 600, fontSize: 11 }}
           >
-            {pendingApprovalCount} to approve
+            {pendingApprovalCount} project{' '}
+            {pendingApprovalCount === 1 ? 'task' : 'tasks'} to approve
           </Chip>
         )}
         <UserProfileAvatar />

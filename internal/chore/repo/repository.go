@@ -804,10 +804,11 @@ func (r *ChoreRepository) DeleteTimeSession(c context.Context, sessionID int, ch
 
 }
 
-// GetOverdueRecurringChores returns all active recurring chores whose next_due_date is in the past.
+// GetOverdueRecurringChores returns all active recurring chores due before
+// cutoff (local midnight today: a job stays on today's list until then).
 // Chores pending approval are excluded as they require human review.
 // The Assignees relation is preloaded so that scheduling logic can use it.
-func (r *ChoreRepository) GetOverdueRecurringChores(c context.Context) ([]*chModel.Chore, error) {
+func (r *ChoreRepository) GetOverdueRecurringChores(c context.Context, cutoff time.Time) ([]*chModel.Chore, error) {
 	var chores []*chModel.Chore
 	nonRecurring := []string{
 		string(chModel.FrequencyTypeOnce),
@@ -816,7 +817,7 @@ func (r *ChoreRepository) GetOverdueRecurringChores(c context.Context) ([]*chMod
 	}
 	err := r.db.WithContext(c).
 		Where("is_active = ? AND next_due_date < ? AND frequency_type NOT IN ? AND status != ?",
-			true, time.Now().UTC(), nonRecurring, chModel.ChoreStatusPendingApproval).
+			true, cutoff.UTC(), nonRecurring, chModel.ChoreStatusPendingApproval).
 		Preload("Assignees").
 		Find(&chores).Error
 	if err != nil {

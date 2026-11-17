@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jobs">
+<meta name="robots" content="noindex">
+<title>Jobs</title>
+<style>
+/* Safari 12: no flex gap, no :is(), no optional chaining in the script. */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: #f4f1ea; color: #23201b;
+  font: 17px/1.35 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-user-select: none; user-select: none; -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+#app { display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; height: 100%; }
+
+/* header */
+.top { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  padding: 12px 16px 10px; background: #23201b; color: #f4f1ea; }
+.clock { font-size: 34px; font-weight: 700; margin-right: 14px; letter-spacing: -0.5px; }
+.date { font-size: 15px; opacity: 0.75; margin-right: 18px; }
+.tv { -webkit-flex: 1; flex: 1; font-size: 16px; padding: 7px 12px; border-radius: 10px; background: #3a352d; }
+.tv.on { background: #2f6b3a; }
+.tv b { margin-right: 6px; }
+.parent { margin-left: 12px; padding: 9px 14px; border-radius: 10px; background: #f4f1ea; color: #23201b; font-weight: 600; font-size: 15px; position: relative; }
+.badge { position: absolute; top: -7px; right: -7px; min-width: 22px; height: 22px; line-height: 22px; border-radius: 11px;
+  background: #c0392b; color: #fff; font-size: 13px; text-align: center; padding: 0 5px; }
+.roles { padding: 7px 16px; background: #e7e1d4; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roles span { margin-right: 18px; }
+.roles b { font-weight: 600; }
+
+/* kid columns */
+.cols { -webkit-flex: 1; flex: 1; display: -webkit-flex; display: flex; padding: 10px 8px 0; min-height: 0; }
+.col { -webkit-flex: 1; flex: 1; margin: 0 6px; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column;
+  min-width: 0; background: #fff; border-radius: 16px; border: 3px solid transparent; transition: opacity .2s, border-color .2s; }
+.col.dim { opacity: 0.45; }
+.col.sel { border-color: #2b6cb0; }
+.name { display: block; width: 100%; padding: 12px 10px 10px; font-size: 26px; font-weight: 700; text-align: center;
+  border-bottom: 1px solid #eee5d6; border-radius: 13px 13px 0 0; }
+.col.sel .name { background: #2b6cb0; color: #fff; }
+.name small { display: block; font-size: 13px; font-weight: 500; opacity: 0.7; }
+.jobs { -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 10px 10px; }
+.cp { margin: 12px 2px 6px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #7a705f; }
+.cp .st { float: right; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.cp .st.done { color: #2f6b3a; }
+.cp .st.waiting { color: #a86b00; }
+.job { display: block; width: 100%; text-align: left; margin-bottom: 8px; padding: 11px 12px 11px 50px; border-radius: 12px;
+  background: #f7f4ee; position: relative; min-height: 54px; }
+.job:before { content: ""; position: absolute; left: 12px; top: 13px; width: 26px; height: 26px; border-radius: 8px; border: 3px solid #b9ae9b; background: #fff; }
+.job.pending { background: #fff4dc; }
+.job.pending:before { border-color: #d69a1e; background: #d69a1e; }
+.job.pending:after { content: "\2713"; position: absolute; left: 19px; top: 13px; color: #fff; font-weight: 700; font-size: 20px; }
+.job.done { background: #e3f1e5; color: #4d6b52; }
+.job.done:before { border-color: #2f6b3a; background: #2f6b3a; }
+.job.done:after { content: "\2713"; position: absolute; left: 19px; top: 13px; color: #fff; font-weight: 700; font-size: 20px; }
+.job .t { font-weight: 600; font-size: 18px; display: block; }
+.job .s { display: block; font-size: 14px; color: #7a705f; margin-top: 2px; }
+.job .w { display: block; font-size: 13px; margin-top: 3px; color: #a86b00; font-weight: 600; }
+.job.redo { background: #fbe9e6; }
+.job.redo .w { color: #b03a2e; }
+.job.done .w { color: #2f6b3a; }
+.empty { color: #9a9080; font-size: 15px; padding: 18px 4px; text-align: center; }
+
+/* extras */
+.extras { margin: 10px 14px 12px; padding: 8px 12px; background: #fff; border-radius: 14px; }
+.extras h3 { margin: 4px 2px 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: #7a705f; }
+.extras .row { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; }
+.extras .job { width: auto; margin-right: 8px; min-width: 220px; }
+.foot { height: 12px; }
+
+/* overlays */
+.ov { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(35,32,27,0.55); display: none;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center; z-index: 10; }
+.ov.show { display: -webkit-flex; display: flex; }
+.sheet { background: #fff; border-radius: 18px; padding: 20px; width: 92%; max-width: 760px; max-height: 88%; display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column; }
+.sheet h2 { margin: 0 0 12px; font-size: 22px; }
+.pin { max-width: 360px; text-align: center; }
+.dots { font-size: 34px; letter-spacing: 10px; height: 46px; margin-bottom: 8px; }
+.keys { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; -webkit-justify-content: center; justify-content: center; }
+.key { width: 86px; height: 66px; margin: 5px; border-radius: 14px; background: #f1ece2; font-size: 26px; font-weight: 600; }
+.key.wide { font-size: 17px; }
+.msg { min-height: 22px; color: #c0392b; font-size: 15px; margin: 4px 0 6px; }
+.alist { overflow-y: auto; -webkit-overflow-scrolling: touch; -webkit-flex: 1; flex: 1; margin: 0 -4px; padding: 0 4px; }
+.akid { margin: 14px 0 6px; font-weight: 700; font-size: 18px; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.akid span { -webkit-flex: 1; flex: 1; }
+.arow { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; padding: 8px 10px; border-radius: 10px; background: #f7f4ee; margin-bottom: 6px; }
+.arow .t { -webkit-flex: 1; flex: 1; }
+.arow .t small { display: block; color: #7a705f; font-size: 13px; }
+.btn { padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 16px; background: #e7e1d4; margin-left: 8px; }
+.btn.ok { background: #2f6b3a; color: #fff; }
+.btn.no { background: #f3d9d5; color: #8e2a1f; }
+.btn.big { padding: 14px 22px; font-size: 18px; }
+.bar { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin-top: 14px; }
+.bar .grow { -webkit-flex: 1; flex: 1; color: #7a705f; font-size: 14px; }
+
+.toast { position: fixed; left: 50%; bottom: 26px; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  background: #23201b; color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 17px; z-index: 20; display: none; max-width: 80%; text-align: center; }
+.toast.show { display: block; }
+.offline { display: none; background: #c0392b; color: #fff; text-align: center; padding: 6px; font-size: 15px; }
+.offline.show { display: block; }
+.fatal { padding: 60px 30px; text-align: center; font-size: 20px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="clock" id="clock">--:--</div>
+    <div class="date" id="date"></div>
+    <div class="tv" id="tv">Loading&hellip;</div>
+    <button class="parent" id="parentBtn" type="button">Parent<span class="badge" id="badge" style="display:none"></span></button>
+  </div>
+  <div class="offline" id="offline">Can't reach GSD. Showing the last jobs we saw; retrying&hellip;</div>
+  <div class="roles" id="roles"></div>
+  <div class="cols" id="cols"></div>
+  <div id="extrasWrap"></div>
+</div>
+
+<div class="ov" id="pinOv">
+  <div class="sheet pin">
+    <h2>Parent PIN</h2>
+    <div class="dots" id="dots"></div>
+    <div class="msg" id="pinMsg"></div>
+    <div class="keys" id="keys"></div>
+  </div>
+</div>
+
+<div class="ov" id="apOv">
+  <div class="sheet">
+    <h2>Waiting for a parent</h2>
+    <div class="msg" id="apMsg"></div>
+    <div class="alist" id="alist"></div>
+    <div class="bar">
+      <div class="grow" id="apHint">Locks after 2 minutes of no taps.</div>
+      <button class="btn big" id="lockBtn" type="button">Lock</button>
+      <button class="btn ok big" id="allBtn" type="button">Approve all</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var BASE = window.location.pathname.replace(/\/+$/, '');
+  var POLL_MS = 30000;
+  var SELECT_IDLE_MS = 60000;
+  var PARENT_IDLE_MS = 115000; // just inside the server's 2 minutes
+  var CP_LABEL = { morning: 'Morning', afternoon: 'After school', evening: 'Bedtime' };
+  var CP_ORDER = ['morning', 'afternoon', 'evening'];
+  var STATE_LABEL = { done: 'Done', waiting: 'Waiting for a parent', todo: '', none: '' };
+
+  var state = null;
+  var selected = 0;           // user id of the kid who tapped their name
+  var selectTimer = null;
+  var parentSession = '';
+  var parentTimer = null;
+  var pin = '';
+  var busy = false;
+  var pollTimer = null;
+  var toastTimer = null;
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function request(method, path, body, done) {
+    var x = new XMLHttpRequest();
+    x.open(method, BASE + path, true);
+    x.setRequestHeader('Content-Type', 'application/json');
+    if (parentSession) { x.setRequestHeader('X-Kiosk-Parent', parentSession); }
+    x.timeout = 15000;
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) { return; }
+      var data = null;
+      try { data = JSON.parse(x.responseText); } catch (e) { data = null; }
+      if (x.status >= 200 && x.status < 300) {
+        done(null, data ? data.res : null, x.status);
+      } else {
+        done((data && data.error) || (x.status === 0 ? 'offline' : 'Something went wrong'), null, x.status);
+      }
+    };
+    x.ontimeout = function () { /* readyState 4 with status 0 follows */ };
+    x.send(body ? JSON.stringify(body) : null);
+  }
+
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast'; }, 3500);
+  }
+
+  // "[Sam] Morning jobs" reads as "Morning jobs" in Sam's own column.
+  function clean(name) { return String(name || '').replace(/^\[[^\]]*\]\s*/, ''); }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function hm(d) {
+    var h = d.getHours(), m = d.getMinutes();
+    var ap = h >= 12 ? 'pm' : 'am';
+    h = h % 12; if (h === 0) { h = 12; }
+    return h + ':' + pad(m) + ap;
+  }
+
+  function tickClock() {
+    var d = new Date();
+    var h = d.getHours() % 12; if (h === 0) { h = 12; }
+    $('clock').textContent = h + ':' + pad(d.getMinutes());
+    var days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    $('date').textContent = days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()];
+  }
+
+  function nameOf(id) {
+    if (!state) { return ''; }
+    for (var i = 0; i < state.kids.length; i++) {
+      if (state.kids[i].userId === id) { return state.kids[i].name; }
+    }
+    return '';
+  }
+
+  // ------------------------------------------------------------ render
+
+  function jobHtml(j, ownerId) {
+    var cls = 'job ' + j.state;
+    var sub = '';
+    if (j.steps && j.steps.length) { sub = '<span class="s">' + esc(j.steps.join(' · ')) + '</span>'; }
+    else if (j.dueDate && j.state === 'todo') {
+      var d = new Date(j.dueDate);
+      if (!isNaN(d.getTime()) && (d.getHours() !== 0 || d.getMinutes() !== 0)) { sub = '<span class="s">By ' + hm(d) + '</span>'; }
+    }
+    var w = '';
+    if (j.state === 'todo' && j.redo) {
+      cls += ' redo';
+      w = '<span class="w">Have another go</span>';
+    } else if (j.state === 'pending') {
+      w = '<span class="w">Waiting for a parent' + (j.tickedBy && j.tickedBy !== ownerId ? ' · ticked by ' + esc(nameOf(j.tickedBy)) : '') + '</span>';
+    } else if (j.state === 'done') {
+      w = '<span class="w">Approved</span>';
+    }
+    var pts = j.points ? ' (' + j.points + ' pts)' : '';
+    return '<button type="button" class="' + cls + '" data-chore="' + j.choreId + '" data-owner="' + ownerId + '" data-state="' + j.state +
+      '" data-ticker="' + (j.tickedBy || 0) + '"><span class="t">' + esc(clean(j.name)) + esc(pts) + '</span>' + sub + w + '</button>';
+  }
+
+  function render() {
+    if (!state) { return; }
+    var tv = $('tv');
+    tv.className = 'tv' + (state.unlocked ? ' on' : '');
+    tv.innerHTML = '<b>TV</b>' + esc(state.screens);
+
+    var badge = $('badge');
+    if (state.pending > 0) { badge.textContent = state.pending; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+
+    var r = [];
+    for (var i = 0; i < state.roles.length; i++) {
+      r.push('<span><b>' + esc(state.roles[i].role) + ':</b> ' + esc(state.roles[i].name || '?') + '</span>');
+    }
+    $('roles').innerHTML = r.length ? 'This week &nbsp; ' + r.join('') : '';
+    $('roles').style.display = r.length ? '' : 'none';
+
+    var cols = [];
+    for (var k = 0; k < state.kids.length; k++) {
+      var kid = state.kids[k];
+      var cls = 'col' + (selected === kid.userId ? ' sel' : (selected ? ' dim' : ''));
+      var left = 0;
+      var html = '';
+      for (var c = 0; c < CP_ORDER.length; c++) {
+        var cp = CP_ORDER[c];
+        var jobs = [];
+        for (var j = 0; j < kid.jobs.length; j++) { if (kid.jobs[j].checkpoint === cp) { jobs.push(kid.jobs[j]); } }
+        if (!jobs.length) { continue; }
+        var st = kid.checkpoints && kid.checkpoints[cp] ? kid.checkpoints[cp].state : '';
+        html += '<div class="cp">' + CP_LABEL[cp] + '<span class="st ' + st + '">' + (STATE_LABEL[st] || '') + '</span></div>';
+        for (var q = 0; q < jobs.length; q++) {
+          if (jobs[q].state === 'todo') { left++; }
+          html += jobHtml(jobs[q], kid.userId);
+        }
+      }
+      if (!html) { html = '<div class="empty">Nothing to do today</div>'; }
+      var hint = selected === kid.userId ? 'Tap a job when it’s done' : (left ? left + ' to do' : 'All ticked');
+      cols.push('<div class="' + cls + '"><button type="button" class="name" data-kid="' + kid.userId + '">' + esc(kid.name) +
+        '<small>' + esc(hint) + '</small></button><div class="jobs">' + html + '</div></div>');
+    }
+    if (!cols.length) { cols.push('<div class="col"><div class="empty">No kids in this household yet.</div></div>'); }
+    $('cols').innerHTML = cols.join('');
+
+    var ex = '';
+    if (state.extras && state.extras.length) {
+      ex = '<div class="extras"><h3>Paid extras · ask a parent first</h3><div class="row">';
+      for (var e = 0; e < state.extras.length; e++) { ex += jobHtml(state.extras[e], 0); }
+      ex += '</div></div>';
+    } else {
+      ex = '<div class="foot"></div>';
+    }
+    $('extrasWrap').innerHTML = ex;
+  }
+
+  // ------------------------------------------------------------ data
+
+  function load() {
+    request('GET', '/state', null, function (err, res, status) {
+      if (err) {
+        if (status === 404) { fatal(err); return; }
+        $('offline').className = 'offline show';
+        return;
+      }
+      $('offline').className = 'offline';
+      state = res;
+      if (selected && !nameOf(selected)) { selected = 0; }
+      render();
+    });
+  }
+
+  function schedulePoll() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(function () { if (!busy) { load(); } }, POLL_MS);
+  }
+
+  function fatal(msg) {
+    clearInterval(pollTimer);
+    document.body.innerHTML = '<div class="fatal">' + esc(msg) + '</div>';
+  }
+
+  // ------------------------------------------------------------ kid actions
+
+  function select(id) {
+    selected = selected === id ? 0 : id;
+    clearTimeout(selectTimer);
+    if (selected) { selectTimer = setTimeout(function () { selected = 0; render(); }, SELECT_IDLE_MS); }
+    render();
+  }
+
+  function onJob(btn) {
+    var choreId = parseInt(btn.getAttribute('data-chore'), 10);
+    var owner = parseInt(btn.getAttribute('data-owner'), 10);
+    var st = btn.getAttribute('data-state');
+    var ticker = parseInt(btn.getAttribute('data-ticker'), 10);
+    if (!selected) { toast('Tap your name first'); return; }
+    if (owner && owner !== selected) { toast('That’s ' + nameOf(owner) + '’s job'); return; }
+    if (st === 'done') { toast('Already approved'); return; }
+    if (busy) { return; }
+    var path = '/tick';
+    if (st === 'pending') {
+      if (ticker && ticker !== selected) { toast('Only ' + nameOf(ticker) + ' can untick that'); return; }
+      path = '/untick';
+    }
+    busy = true;
+    btn.style.opacity = '0.5';
+    clearTimeout(selectTimer);
+    selectTimer = setTimeout(function () { selected = 0; render(); }, SELECT_IDLE_MS);
+    request('POST', path, { choreId: choreId, userId: selected }, function (err, res) {
+      busy = false;
+      if (err) {
+        toast(err === 'offline' ? 'Can’t reach GSD. Try again in a moment.' : err);
+        render();
+        return;
+      }
+      state = res;
+      render();
+      if (path === '/tick') { toast('Ticked! A parent will check it.'); }
+    });
+  }
+
+  // ------------------------------------------------------------ parent
+
+  function buildKeys() {
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Cancel', '0', 'Del'];
+    var h = '';
+    for (var i = 0; i < keys.length; i++) {
+      h += '<button type="button" class="key' + (keys[i].length > 1 ? ' wide' : '') + '" data-key="' + keys[i] + '">' + keys[i] + '</button>';
+    }
+    $('keys').innerHTML = h;
+  }
+
+  function showPin() {
+    if (state && !state.pinSet) { toast('Set a parent PIN in GSD settings first'); return; }
+    pin = '';
+    $('dots').textContent = '';
+    $('pinMsg').textContent = '';
+    $('pinOv').className = 'ov show';
+  }
+
+  function onKey(k) {
+    if (k === 'Cancel') { $('pinOv').className = 'ov'; return; }
+    if (k === 'Del') { pin = pin.slice(0, -1); }
+    else if (pin.length < 8) { pin += k; }
+    $('dots').textContent = new Array(pin.length + 1).join('●');
+    $('pinMsg').textContent = '';
+    if (pin.length >= 4) { tryPin(); }
+  }
+
+  var pinTimer = null;
+  function tryPin() {
+    // PINs are 4 to 8 digits: wait a beat for more digits before checking.
+    clearTimeout(pinTimer);
+    pinTimer = setTimeout(function () {
+      var attempt = pin;
+      request('POST', '/unlock', { pin: attempt }, function (err, res) {
+        if (err) {
+          if (pin === attempt) { pin = ''; $('dots').textContent = ''; }
+          $('pinMsg').textContent = err === 'offline' ? 'Can’t reach GSD' : err;
+          return;
+        }
+        parentSession = res.session;
+        $('pinOv').className = 'ov';
+        openApprovals();
+      });
+    }, 900);
+  }
+
+  function bumpParent() {
+    clearTimeout(parentTimer);
+    parentTimer = setTimeout(lockParent, PARENT_IDLE_MS);
+  }
+
+  function lockParent() {
+    clearTimeout(parentTimer);
+    if (parentSession) { request('POST', '/lock', null, function () {}); }
+    parentSession = '';
+    $('apOv').className = 'ov';
+    load();
+  }
+
+  function openApprovals() {
+    $('apOv').className = 'ov show';
+    $('apMsg').textContent = '';
+    bumpParent();
+    loadApprovals();
+  }
+
+  var pendingList = [];
+  function loadApprovals() {
+    request('GET', '/pending', null, function (err, res, status) {
+      if (err) {
+        if (status === 401) { lockParent(); toast(err); return; }
+        $('apMsg').textContent = err === 'offline' ? 'Can’t reach GSD' : err;
+        return;
+      }
+      pendingList = res || [];
+      renderApprovals();
+    });
+  }
+
+  function ago(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return ''; }
+    var mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) { return 'just now'; }
+    if (mins < 60) { return mins + ' min ago'; }
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    return (d < today ? 'yesterday ' : '') + hm(d);
+  }
+
+  function renderApprovals() {
+    if (!pendingList.length) {
+      $('alist').innerHTML = '<div class="empty">Nothing waiting. Nice.</div>';
+      $('allBtn').style.display = 'none';
+      return;
+    }
+    $('allBtn').style.display = '';
+    var groups = {}, order = [];
+    for (var i = 0; i < pendingList.length; i++) {
+      var p = pendingList[i];
+      if (!groups[p.completedBy]) { groups[p.completedBy] = []; order.push(p.completedBy); }
+      groups[p.completedBy].push(p);
+    }
+    var h = '';
+    for (var g = 0; g < order.length; g++) {
+      var items = groups[order[g]];
+      h += '<div class="akid"><span>' + esc(items[0].completedByName || 'Someone') + '</span>' +
+        '<button type="button" class="btn ok" data-approve-kid="' + order[g] + '">Approve ' + esc(items[0].completedByName || '') + '’s</button></div>';
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        var cp = CP_LABEL[it.checkpoint] || (it.checkpoint === 'extra' ? 'Paid extra' : '');
+        h += '<div class="arow"><div class="t">' + esc(clean(it.name)) + '<small>' + esc((cp ? cp + ' · ' : '') + 'ticked ' + ago(it.performedAt)) +
+          '</small></div><button type="button" class="btn no" data-reject="' + it.choreId + '">Redo</button>' +
+          '<button type="button" class="btn ok" data-approve="' + it.choreId + '">OK</button></div>';
+      }
+    }
+    $('alist').innerHTML = h;
+  }
+
+  function act(path, ids, note) {
+    if (busy) { return; }
+    busy = true;
+    bumpParent();
+    request('POST', path, { choreIds: ids, note: note || '' }, function (err, res, status) {
+      busy = false;
+      if (err) {
+        if (status === 401) { lockParent(); toast(err); return; }
+        $('apMsg').textContent = err === 'offline' ? 'Can’t reach GSD' : err;
+        return;
+      }
+      if (res && res.failed && res.failed.length) {
+        $('apMsg').textContent = res.failed.length + ' couldn’t be done: ' + res.failed[0].error;
+      } else {
+        $('apMsg').textContent = '';
+      }
+      loadApprovals();
+      load();
+    });
+  }
+
+  // ------------------------------------------------------------ events
+
+  function closest(el, attr) {
+    while (el && el !== document) {
+      if (el.getAttribute && el.getAttribute(attr) !== null) { return el; }
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  document.addEventListener('click', function (ev) {
+    var t = ev.target, el;
+    if ((el = closest(t, 'data-key'))) { onKey(el.getAttribute('data-key')); return; }
+    if ($('apOv').className.indexOf('show') >= 0) {
+      bumpParent();
+      if ((el = closest(t, 'data-approve'))) { act('/approve', [parseInt(el.getAttribute('data-approve'), 10)]); return; }
+      if ((el = closest(t, 'data-reject'))) { act('/reject', [parseInt(el.getAttribute('data-reject'), 10)], 'Have another go'); return; }
+      if ((el = closest(t, 'data-approve-kid'))) {
+        var kidId = parseInt(el.getAttribute('data-approve-kid'), 10), ids = [];
+        for (var i = 0; i < pendingList.length; i++) { if (pendingList[i].completedBy === kidId) { ids.push(pendingList[i].choreId); } }
+        act('/approve', ids);
+        return;
+      }
+      return;
+    }
+    if ((el = closest(t, 'data-kid'))) { select(parseInt(el.getAttribute('data-kid'), 10)); return; }
+    if ((el = closest(t, 'data-chore'))) { onJob(el); return; }
+  }, false);
+
+  $('parentBtn').addEventListener('click', showPin, false);
+  $('lockBtn').addEventListener('click', lockParent, false);
+  $('allBtn').addEventListener('click', function () {
+    var ids = [];
+    for (var i = 0; i < pendingList.length; i++) { ids.push(pendingList[i].choreId); }
+    act('/approve', ids);
+  }, false);
+
+  // Coming back from sleep or another app: refresh straight away.
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { load(); } }, false);
+
+  // Reload the whole page once a day so a long-running tablet picks up new versions.
+  var bootDay = new Date().getDate();
+  setInterval(function () {
+    tickClock();
+    var now = new Date();
+    if (now.getDate() !== bootDay && now.getHours() >= 3 && !parentSession) { window.location.reload(); }
+  }, 10000);
+
+  buildKeys();
+  tickClock();
+  load();
+  schedulePoll();
+}());
+</script>
+</body>
+</html>

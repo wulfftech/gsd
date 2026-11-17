@@ -1,4 +1,11 @@
-import { Add, ArrowDropDown, HorizontalRule, Save } from '@mui/icons-material'
+import {
+  Add,
+  ArrowDownward,
+  ArrowDropDown,
+  ArrowUpward,
+  HorizontalRule,
+  Save,
+} from '@mui/icons-material'
 import {
   Avatar,
   Box,
@@ -27,11 +34,12 @@ import {
   Typography,
 } from '@mui/joy'
 import moment from 'moment'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import DurationInput from '../../components/common/DurationInput'
 import KeyboardShortcutHint from '../../components/common/KeyboardShortcutHint'
 import NotificationTemplate from '../../components/NotificationTemplate.jsx'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import {
   useArchiveChore,
   useChore,
@@ -65,8 +73,26 @@ const ASSIGN_STRATEGIES = [
   'keep_last_assigned',
   'random_except_last_assigned',
   'round_robin',
+  'weekly_rotation',
   'no_assignee',
 ]
+
+// Value sent as `checkpoint` on the chore. '' means no checkpoint.
+const CHECKPOINT_OPTIONS = [
+  { value: '', label: 'None' },
+  { value: 'morning', label: 'Morning' },
+  { value: 'afternoon', label: 'After school' },
+  { value: 'evening', label: 'Bedtime' },
+  { value: 'extra', label: 'Paid extra' },
+]
+
+// Week index of `date` in a weekly rotation that starts the week of `anchor`.
+// Weeks start on Monday, matching the server.
+const rotationWeekIndex = (anchor, date) => {
+  const anchorMonday = moment(anchor).isoWeekday(1).startOf('day')
+  const dateMonday = moment(date).isoWeekday(1).startOf('day')
+  return Math.round(dateMonday.diff(anchorMonday, 'days') / 7)
+}
 const REPEAT_ON_TYPE = ['interval', 'days_of_the_week', 'day_of_the_month']
 
 const NO_DUE_DATE_REQUIRED_TYPE = ['no_repeat', 'once']
@@ -97,6 +123,12 @@ const ChoreEdit = () => {
   const [priority, setPriority] = useState(0)
   const [points, setPoints] = useState(-1)
   const [requireApproval, setRequireApproval] = useState(false)
+  const [checkpoint, setCheckpoint] = useState('')
+  const [skipHolidays, setSkipHolidays] = useState(false)
+  // User ids in rotation order, for the weekly_rotation strategy.
+  const [rotationOrder, setRotationOrder] = useState([])
+  // Local calendar date (YYYY-MM-DD) the rotation starts from.
+  const [rotationAnchorDate, setRotationAnchorDate] = useState(null)
   const [isPrivate, setIsPrivate] = useState(false)
   const [subTasks, setSubTasks] = useState(null)
   const [completionWindow, setCompletionWindow] = useState(-1)
@@ -137,8 +169,30 @@ const ChoreEdit = () => {
   const { data: membersData, isLoading: isMemberDataLoading } =
     useCircleMembers()
   const { showSuccess, showError } = useNotification()
+  const { isMember, isLoading: isRoleLoading } = useCircleRole()
 
   const [userLabels, setUserLabels] = useState([])
+
+  // Rotation order limited to the current assignees, with any newly ticked
+  // assignee added to the end, so the list always matches who can do it.
+  const effectiveRotationOrder = useMemo(() => {
+    const assigneeIds = assignees.map(a => a.userId)
+    const ordered = rotationOrder.filter(id => assigneeIds.includes(id))
+    assigneeIds.forEach(id => {
+      if (!ordered.includes(id)) ordered.push(id)
+    })
+    return ordered
+  }, [assignees, rotationOrder])
+
+  const moveRotationMember = (index, direction) => {
+    const target = index + direction
+    if (target < 0 || target >= effectiveRotationOrder.length) return
+    const next = [...effectiveRotationOrder]
+    const moved = next[index]
+    next[index] = next[target]
+    next[target] = moved
+    setRotationOrder(next)
+  }
 
   useEffect(() => {
     if (userLabelsRaw) {
@@ -161,6 +215,9 @@ const ChoreEdit = () => {
       if (assignedTo === null || assignedTo < 0) {
         errors.assignedTo = 'Assigned to is required'
       }
+    }
+    if (assignStrategy === 'weekly_rotation' && !rotationAnchorDate) {
+      errors.rotationAnchor = 'Pick the date the rotation starts'
     }
     if (frequencyType === 'interval' && !frequency > 0) {
       errors.frequency = `Invalid frequency, the ${frequencyMetadata.unit} should be > 0`
@@ -233,6 +290,7 @@ const ChoreEdit = () => {
     frequencyType,
     isThingValid,
     name,
+    rotationAnchorDate,
     showError,
   ])
 
@@ -352,6 +410,16 @@ const ChoreEdit = () => {
       thingTrigger: thingTrigger,
       points: points < 0 ? null : points,
       requireApproval: requireApproval,
+      checkpoint: checkpoint,
+      skipHolidays: skipHolidays,
+      rotationOrder:
+        assignStrategy === 'weekly_rotation' ? effectiveRotationOrder : null,
+      rotationAnchor:
+        assignStrategy === 'weekly_rotation' && rotationAnchorDate
+          ? moment(rotationAnchorDate, 'YYYY-MM-DD')
+              .startOf('day')
+              .toISOString()
+          : null,
       isPrivate: isPrivate,
       completionWindow:
         // if completionWindow is -1 then set it to null or dueDate is null
@@ -386,6 +454,7 @@ const ChoreEdit = () => {
     assignStrategy,
     assignedTo,
     assignees,
+    checkpoint,
     choreId,
     completionWindow,
     createChoreMutation.mutateAsync,
@@ -408,9 +477,12 @@ const ChoreEdit = () => {
     priority,
     projectId,
     requireApproval,
+    effectiveRotationOrder,
+    rotationAnchorDate,
     searchParams,
     showError,
     showSuccess,
+    skipHolidays,
     subTasks,
     thingTrigger,
     updateChoreMutation.mutateAsync,
@@ -510,6 +582,16 @@ const ChoreEdit = () => {
       setNotificationMetadata(data.res.notificationMetadata)
       setPoints(data.res.points && data.res.points > -1 ? data.res.points : -1)
       setRequireApproval(data.res.requireApproval || false)
+      setCheckpoint(data.res.checkpoint || '')
+      setSkipHolidays(data.res.skipHolidays || false)
+      setRotationOrder(
+        Array.isArray(data.res.rotationOrder) ? data.res.rotationOrder : [],
+      )
+      setRotationAnchorDate(
+        data.res.rotationAnchor
+          ? moment(data.res.rotationAnchor).format('YYYY-MM-DD')
+          : null,
+      )
       setIsPrivate(data.res.isPrivate || false)
       setCompletionWindow(
         data.res.completionWindow && data.res.completionWindow > -1
@@ -622,6 +704,24 @@ const ChoreEdit = () => {
     }
   }, [assignees, assignStrategy])
 
+  // Weekly rotation: default the start date to today, and keep "Currently
+  // assigned to" in step with whose week the due date falls in. The server
+  // works this out again on save; this just keeps the form consistent.
+  useEffect(() => {
+    if (assignStrategy !== 'weekly_rotation') return
+    if (!rotationAnchorDate) {
+      setRotationAnchorDate(moment().format('YYYY-MM-DD'))
+      return
+    }
+    if (effectiveRotationOrder.length === 0) return
+    const len = effectiveRotationOrder.length
+    const week = rotationWeekIndex(
+      moment(rotationAnchorDate, 'YYYY-MM-DD'),
+      dueDate ? moment(dueDate) : moment(),
+    )
+    setAssignedTo(effectiveRotationOrder[((week % len) + len) % len])
+  }, [assignStrategy, rotationAnchorDate, effectiveRotationOrder, dueDate])
+
   // useEffect(() => {
   //   if (performers.length > 0 && assignees.length === 0 && userProfile) {
   //     setAssignees([
@@ -688,9 +788,29 @@ const ChoreEdit = () => {
     isUserLabelsLoading ||
     isUserProfileLoading ||
     isMemberDataLoading ||
-    isProjectsLoading
+    isProjectsLoading ||
+    isRoleLoading
   ) {
     return <LoadingComponent />
+  }
+  if (isMember) {
+    return (
+      <Container maxWidth='md'>
+        <Card sx={{ mt: 2, p: 3, textAlign: 'center' }}>
+          <Typography level='title-lg'>Ask a parent</Typography>
+          <Typography level='body-md' sx={{ mt: 1 }}>
+            Only parents can add or change tasks.
+          </Typography>
+          <Button
+            sx={{ mt: 2 }}
+            variant='outlined'
+            onClick={() => Navigate('/chores')}
+          >
+            Back to tasks
+          </Button>
+        </Card>
+      </Container>
+    )
   }
   return (
     <Container maxWidth='md'>
@@ -1117,6 +1237,74 @@ const ChoreEdit = () => {
                 </List>
               </Card>
             </Box>
+
+            {assignStrategy === 'weekly_rotation' && (
+              <Box mt={3}>
+                <Typography level='h4'>Rotation Order</Typography>
+                <Typography level='body-md'>
+                  Who goes first, second and so on.
+                </Typography>
+                <Card sx={{ mt: 1 }}>
+                  <List size='sm'>
+                    {effectiveRotationOrder.map((userId, index) => {
+                      const member = performers?.find(p => p.userId === userId)
+                      return (
+                        <ListItem
+                          key={userId}
+                          endAction={
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              <IconButton
+                                size='sm'
+                                variant='plain'
+                                aria-label='Move up'
+                                disabled={index === 0}
+                                onClick={() => moveRotationMember(index, -1)}
+                              >
+                                <ArrowUpward />
+                              </IconButton>
+                              <IconButton
+                                size='sm'
+                                variant='plain'
+                                aria-label='Move down'
+                                disabled={
+                                  index === effectiveRotationOrder.length - 1
+                                }
+                                onClick={() => moveRotationMember(index, 1)}
+                              >
+                                <ArrowDownward />
+                              </IconButton>
+                            </Box>
+                          }
+                        >
+                          <Typography level='body-md'>
+                            {index + 1}.{' '}
+                            {member?.displayName || `User ${userId}`}
+                          </Typography>
+                        </ListItem>
+                      )
+                    })}
+                  </List>
+                </Card>
+                <FormControl
+                  sx={{ mt: 2 }}
+                  error={Boolean(errors.rotationAnchor)}
+                >
+                  <Typography level='title-md'>Rotation starts</Typography>
+                  <Input
+                    type='date'
+                    value={rotationAnchorDate || ''}
+                    onChange={e =>
+                      setRotationAnchorDate(e.target.value || null)
+                    }
+                    sx={{ width: 200 }}
+                  />
+                  <FormHelperText>
+                    {errors.rotationAnchor ||
+                      'Moves to the next person every Monday'}
+                  </FormHelperText>
+                </FormControl>
+              </Box>
+            )}
           </>
         )}
       </Box>
@@ -1137,6 +1325,20 @@ const ChoreEdit = () => {
           isAttemptToSave={attemptToSave}
           selectedThing={thingTrigger}
         />
+
+        {frequencyType !== 'once' && frequencyType !== 'no_repeat' && (
+          <FormControl sx={{ mt: 2 }}>
+            <Checkbox
+              checked={skipHolidays}
+              onChange={e => setSkipHolidays(e.target.checked)}
+              overlay
+              label='Skip school holidays'
+            />
+            <FormHelperText>
+              Won&apos;t fall due during the school holidays set in Settings
+            </FormHelperText>
+          </FormControl>
+        )}
 
         <Box mt={3} mb={3}>
           <Typography level='h4'>
@@ -1544,6 +1746,24 @@ const ChoreEdit = () => {
               </Box>
             </Card>
           )}
+        </Box>
+
+        <Box mb={3}>
+          <Typography level='h4'>Checkpoint</Typography>
+          <Typography level='body-md'>
+            Which part of the day this job belongs to.
+          </Typography>
+          <Select
+            value={checkpoint}
+            onChange={(e, value) => setCheckpoint(value ?? '')}
+            sx={{ mt: 1, maxWidth: 240 }}
+          >
+            {CHECKPOINT_OPTIONS.map(option => (
+              <Option key={option.value || 'none'} value={option.value}>
+                {option.label}
+              </Option>
+            ))}
+          </Select>
         </Box>
 
         <Box mb={3}>

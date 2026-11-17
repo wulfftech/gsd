@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material'
 import { Box, Typography } from '@mui/joy'
 import { useNavigate } from 'react-router-dom'
+import { useCircleRole } from '../../hooks/useCircleRole'
 import ChoreCard from './ChoreCard'
 import CompactChoreCard from './CompactChoreCard'
 
@@ -38,6 +39,9 @@ const ChoreListView = ({
   onChoreOpen,
 }) => {
   const navigate = useNavigate()
+  // Kids (circle role 'member') can complete but not reschedule, edit or
+  // delete, and can't approve or reject.
+  const { canManage, isMember } = useCircleRole()
   const renderChoreCard = (chore, key) => {
     const CardComponent = viewMode === 'compact' ? CompactChoreCard : ChoreCard
     return (
@@ -56,7 +60,8 @@ const ChoreListView = ({
     )
   }
   const canApproveReject = chore => {
-    return userProfile?.role === 1 || chore.createdBy === userProfile?.id
+    if (isMember) return false
+    return canManage || chore.createdBy === userProfile?.id
   }
 
   const getTrailingActions = chore => {
@@ -157,47 +162,51 @@ const ChoreListView = ({
             </SwipeAction>
           )}
 
-          <SwipeAction
-            onClick={() => handleChoreAction('changeDueDate', chore)}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'warning.softBg',
-                color: 'warning.700',
-                px: 3,
-                height: '100%',
-              }}
-            >
-              <Schedule sx={{ fontSize: 20 }} />
-              <Typography level='body-xs' sx={{ mt: 0.5 }}>
-                Schedule
-              </Typography>
-            </Box>
-          </SwipeAction>
+          {!isMember && (
+            <>
+              <SwipeAction
+                onClick={() => handleChoreAction('changeDueDate', chore)}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'warning.softBg',
+                    color: 'warning.700',
+                    px: 3,
+                    height: '100%',
+                  }}
+                >
+                  <Schedule sx={{ fontSize: 20 }} />
+                  <Typography level='body-xs' sx={{ mt: 0.5 }}>
+                    Schedule
+                  </Typography>
+                </Box>
+              </SwipeAction>
 
-          <SwipeAction onClick={() => navigate(`/chores/${chore.id}/edit`)}>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'neutral.softBg',
-                color: 'neutral.700',
-                px: 3,
-                height: '100%',
-              }}
-            >
-              <Edit sx={{ fontSize: 20 }} />
-              <Typography level='body-xs' sx={{ mt: 0.5 }}>
-                Edit
-              </Typography>
-            </Box>
-          </SwipeAction>
+              <SwipeAction onClick={() => navigate(`/chores/${chore.id}/edit`)}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'neutral.softBg',
+                    color: 'neutral.700',
+                    px: 3,
+                    height: '100%',
+                  }}
+                >
+                  <Edit sx={{ fontSize: 20 }} />
+                  <Typography level='body-xs' sx={{ mt: 0.5 }}>
+                    Edit
+                  </Typography>
+                </Box>
+              </SwipeAction>
+            </>
+          )}
 
           {isOfficialInstance && (
             <SwipeAction onClick={() => handleChoreAction('nudge', chore)}>
@@ -221,25 +230,27 @@ const ChoreListView = ({
             </SwipeAction>
           )}
 
-          <SwipeAction onClick={() => handleChoreAction('delete', chore)}>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'danger.softBg',
-                color: 'danger.700',
-                px: 3,
-                height: '100%',
-              }}
-            >
-              <Delete sx={{ fontSize: 20 }} />
-              <Typography level='body-xs' sx={{ mt: 0.5 }}>
-                Delete
-              </Typography>
-            </Box>
-          </SwipeAction>
+          {!isMember && (
+            <SwipeAction onClick={() => handleChoreAction('delete', chore)}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'danger.softBg',
+                  color: 'danger.700',
+                  px: 3,
+                  height: '100%',
+                }}
+              >
+                <Delete sx={{ fontSize: 20 }} />
+                <Typography level='body-xs' sx={{ mt: 0.5 }}>
+                  Delete
+                </Typography>
+              </Box>
+            </SwipeAction>
+          )}
         </Box>
       </TrailingActions>
     )
