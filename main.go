@@ -59,6 +59,7 @@ import (
 	"gorm.io/gorm"
 
 	"donetick.com/core/internal/filter"
+	"donetick.com/core/internal/household"
 	fRepo "donetick.com/core/internal/filter/repo"
 	"donetick.com/core/internal/reward"
 	rRepo "donetick.com/core/internal/reward/repo"
@@ -192,6 +193,7 @@ func main() {
 		fx.Provide(database.NewDatabase),
 		fx.Provide(chRepo.NewChoreRepository),
 		fx.Provide(chore.NewHandler),
+		fx.Provide(household.NewRepository),
 		fx.Provide(uRepo.NewUserRepository),
 		fx.Provide(user.NewDeletionService),
 		fx.Provide(user.NewHandler),
@@ -301,6 +303,7 @@ func main() {
 		fx.Invoke(
 			chore.Routes,
 			chore.APIs,
+			chore.HouseholdRoutes,
 			user.Routes,
 			circle.Routes,
 			device.Routes,
@@ -393,8 +396,13 @@ func newServer(lc fx.Lifecycle, cfg *config.Config, db *gorm.DB, notifier *notif
 					}
 				}
 
-				database.Migration(db)
-				migrations.Run(context.Background(), db)
+				// A failed migration leaves the schema half-applied; refuse to serve on it.
+				if err := database.Migration(db); err != nil {
+					panic(fmt.Errorf("schema migration failed: %w", err))
+				}
+				if err := migrations.Run(context.Background(), db); err != nil {
+					panic(fmt.Errorf("data migration failed: %w", err))
+				}
 				err := database.MigrationScripts(db, cfg)
 				if err != nil {
 					panic(err)
