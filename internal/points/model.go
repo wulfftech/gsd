@@ -20,4 +20,5 @@ const (
 	PointsHistoryActionRedeem                             // 2
 	PointsHistoryActionProject                            // 3 — awarded when a project is completed
 	PointsHistoryActionChore                              // 4 — awarded when a chore is completed/approved
+	PointsHistoryActionPayout                             // 5 — whole balance paid out as money
 )

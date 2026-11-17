@@ -95,3 +95,26 @@ Before running migrations the app snapshots SQLite to
 - Timezone matters: chores are timezone-aware; `TZ` env and
   `scripts/check-time-utc.sh` exist for this reason.
 - Repo has CRLF line endings (Windows checkout under WSL).
+
+## Household features (checkpoints, kiosk, rotation)
+
+- **Timezone is load-bearing.** "Today", midnight and "Monday" mean the server's
+  local time. `config.go` forces UTC unless `TZ` is set, so the container must keep
+  `TZ=Australia/Perth` (docker-compose.yaml). Locally under Git Bash, `TZ` is
+  stripped before it reaches a Windows `.exe`; start the binary from PowerShell
+  with `$env:TZ` set, or rotation and checkpoints come out a day/week off.
+- Chores carry `checkpoint` (morning/afternoon/evening/extra), `skipHolidays`, and
+  for `assignStrategy: weekly_rotation`, `rotationOrder` + `rotationAnchor`.
+  Scheduling rules live in `internal/chore/scheduling/household.go`
+  (`FinaliseNextDueDate`, `RotationAssignee`); completion, approval and the eapi
+  all go through `planNext` in `internal/chore/household.go`.
+- Missed chores roll over only after local midnight (`missOverdueChoresJob`), which
+  also re-syncs weekly-rotation assignees each hour.
+- Members (circle role `member`) can view, complete and undo only; everything
+  else is behind `h.managerOnly`.
+- `/api/v1/household/*` (checkpoints, holidays, kiosk setup), `/api/v1/chores/pending`,
+  bulk `/api/v1/chores/approve|reject`, and eapi mirrors under `/eapi/v1/chore/*` and
+  `/eapi/v1/household/checkpoints`.
+- The kiosk (`/kiosk/<token>`) is `internal/chore/kiosk.html`: one embedded file,
+  ES5 + XMLHttpRequest for Safari 12. Keep it ES5; check with
+  `node -e "require('acorn').parse(js,{ecmaVersion:5})"` from `ui/`.

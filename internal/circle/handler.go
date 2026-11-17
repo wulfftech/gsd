@@ -1,6 +1,7 @@
 package circle
 
 import (
+	"errors"
 	"log"
 
 	"strconv"
@@ -921,6 +922,7 @@ func Routes(router *gin.Engine, h *Handler, multiAuthMiddleware *auth.MultiAuthM
 		circleRoutes.GET("/", h.GetUserCircles)
 		circleRoutes.POST("/:id/members/points/redeem", h.RedeemPoints)
 		circleRoutes.POST("/:id/members/points/deposit", h.DepositPoints)
+		circleRoutes.POST("/:id/members/points/payout", h.PayoutPoints)
 
 		if !h.singleCircleInstance {
 			circleRoutes.PUT("/members/requests/accept", h.AcceptJoinRequest)
@@ -929,4 +931,58 @@ func Routes(router *gin.Engine, h *Handler, multiAuthMiddleware *auth.MultiAuthM
 			circleRoutes.DELETE("/:id/members/delete", h.DeleteCircleMember)
 		}
 	}
+}
+
+// PayoutPoints pays a member's whole points balance out and resets it to zero.
+func (h *Handler) PayoutPoints(c *gin.Context) {
+	currentUser, ok := auth.CurrentUser(c)
+	if !ok {
+		c.JSON(401, gin.H{"error": "Authentication failed"})
+		return
+	}
+	var req struct {
+		UserID int `json:"userId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.UserID == 0 {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+	circleID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || circleID != currentUser.CircleID {
+		c.JSON(400, gin.H{"error": "You are not a member of this circle"})
+		return
+	}
+	members, err := h.circleRepo.GetCircleUsers(c, circleID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Error getting circle members"})
+		return
+	}
+	isAdmin, isMember := false, false
+	for _, m := range members {
+		if m.UserID == currentUser.ID && m.Role == "admin" {
+			isAdmin = true
+		}
+		if m.UserID == req.UserID {
+			isMember = true
+		}
+	}
+	if !isAdmin {
+		c.JSON(403, gin.H{"error": "You are not an admin of this circle"})
+		return
+	}
+	if !isMember {
+		c.JSON(400, gin.H{"error": "User is not a member of this circle"})
+		return
+	}
+	paid, err := h.circleRepo.PayoutPoints(c, circleID, req.UserID, currentUser.ID)
+	if err != nil {
+		if errors.Is(err, cRepo.ErrNothingToPay) {
+			c.JSON(400, gin.H{"error": "Nothing to pay out"})
+			return
+		}
+		logging.FromContext(c).Errorw("payout failed", "error", err)
+		c.JSON(500, gin.H{"error": "Error paying out"})
+		return
+	}
+	c.JSON(200, gin.H{"res": gin.H{"userId": req.UserID, "paid": paid}})
 }
